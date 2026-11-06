@@ -404,7 +404,7 @@ Ovaj korak je isti u oba plana (P-01 i D-01). Radite ga zajedno.
 Svi pojmovi iz rječnika postoje kao modeli, u adminu se stvaraju serije pločica s QR kodovima.
 
 ### P-06 Modeli Partner, Serija pločica i Pločica
-- [ ] Gotovo
+- [x] Gotovo
 
 **Cilj:** u bazi postoje partneri s postotkom provizije, serije pločica i pločice sa slučajnim 6-znakovnim kodom, hashiranim aktivacijskim kodom i statusom neaktivirana/aktivirana.
 
@@ -458,7 +458,7 @@ Svi pojmovi iz rječnika postoje kao modeli, u adminu se stvaraju serije pločic
 - `on_delete=CASCADE` na partneru ili seriji: brisanje jednog partnera obrisalo bi sve pločice i grobove.
 
 ### P-07 Modeli Grob, Pokojnik i Srodnik
-- [ ] Gotovo
+- [x] Gotovo
 
 **Cilj:** u bazi postoje grob s tekstualnom oznakom grobnog mjesta i odvojenim poljima za vlasnika i kontakt za prijavu, pokojnici u grobu i srodnici s vrstom srodstva.
 
@@ -497,7 +497,7 @@ Svi pojmovi iz rječnika postoje kao modeli, u adminu se stvaraju serije pločic
 **Procjena:** 2–3 sata.
 
 ### P-08 Modeli za pristup, medije, knjigu sjećanja i prijave
-- [ ] Gotovo
+- [x] Gotovo
 
 **Cilj:** postoje svi preostali modeli MVP-a: obiteljski link, neuspjeli pokušaj, zahtjev za pristup, medij, poruka u knjizi sjećanja i prijava sadržaja.
 

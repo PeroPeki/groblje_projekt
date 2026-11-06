@@ -34,6 +34,9 @@ INSTALLED_APPS = [
     # naše aplikacije
     "korisnici",
     "jezgra",
+    "pristup",
+    "mediji",
+    "knjiga",
 ]
 
 MIDDLEWARE = [
@@ -103,6 +106,23 @@ STATICFILES_DIRS = [BASE_DIR / "static"]
 TAILWIND_CLI_SRC_CSS = "tailwind/ulaz.css"
 TAILWIND_CLI_DIST_CSS = "css/izlaz.css"
 TAILWIND_CLI_VERSION = "4.3.4"  # ista verzija za oba člana tima
+
+
+# Učitane datoteke (lokalno u mapi media/, koja nije u Gitu; u produkciji R2, P-26)
+
+MEDIA_URL = "media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
+
+# Ograničenja medija (odluke 12 i 18). Mijenjaju se samo ovdje.
+
+MEDIJI_MAX_SLIKA_PO_GROBU = 300
+MEDIJI_MAX_VIDEO_SEKUNDI_PO_GROBU = 20 * 60
+MEDIJI_MAX_BAJTOVA_PO_GROBU = 2 * 1024**3
+MEDIJI_MAX_VIDEO_SEKUNDI = 5 * 60
+MEDIJI_MAX_VIDEO_BAJTOVA = 1024**3
+MEDIJI_MAX_SLIKA_BAJTOVA = 30 * 1024**2  # tehnička odluka: dovoljno za HEIC/JPEG s mobitela
+MEDIJI_MAX_STRANICA_SLIKE_PX = 2048
 
 
 # E-mail: lokalno se poruke ispisuju u terminal umjesto da se šalju
