@@ -1,0 +1,11 @@
+/*
+  Izvorni Tailwind CSS (ovo se uređuje).
+  Tailwind iz ove datoteke generira static/css/izlaz.css, koji se ne sprema u Git.
+  Datoteka je namjerno izvan static/, jer bi je inače collectstatic pokušao objaviti.
+*/
+@import "tailwindcss";
+@source "../templates";
+
+@theme {
+  /* boje i fontovi iz Figme dodaje Karlo u D-14 */
+}

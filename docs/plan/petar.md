@@ -75,11 +75,12 @@ groblje_projekt/
 │   ├── emailovi/        # tekstovi e-mail poruka
 │   └── greske/          # 404.html, 500.html, zaključano
 ├── static/
-│   ├── css/ulaz.css     # izvorni Tailwind CSS (ovo se uređuje)
+│   ├── css/izlaz.css    # CSS koji generira Tailwind (nije u Gitu)
 │   ├── js/              # mali vlastiti JavaScript (npr. upload)
 │   ├── img/             # ikone, logotip
 │   ├── fontovi/         # fontovi koje poslužujemo sami
 │   └── vendor/          # htmx.min.js i slične preuzete datoteke
+├── tailwind/ulaz.css    # izvorni Tailwind CSS (ovo se uređuje; izvan static/ da ga collectstatic ne dira)
 ├── demo/                # izmišljeni demo sadržaj i popis izvora fotografija
 ├── docs/                # odluke, planovi, dijagram modela, popis predložaka
 ├── .env.example         # popis potrebnih varijabli BEZ stvarnih vrijednosti
@@ -226,7 +227,7 @@ Ovaj korak je isti u oba plana (P-01 i D-01). Radite ga zajedno.
 > 🔁 **Predaja:** Petar daje prijatelju pristup repozitoriju (pozivnica za *collaboratora*). Time može krenuti **D-02**.
 
 ### P-03 Django projekt i postavke iz `.env`
-- [ ] Gotovo
+- [x] Gotovo
 
 **Cilj:** u repozitoriju postoji Django projekt `config` s aplikacijom `korisnici` i vlastitim modelom korisnika, a sve tajne i postavke ovisne o okruženju čitaju se iz `.env`.
 
@@ -296,7 +297,7 @@ Ovaj korak je isti u oba plana (P-01 i D-01). Radite ga zajedno.
 - Zaboravljeno aktiviranje venv-a: `pip install` tada instalira pakete u sistemski Python.
 
 ### P-04 PostgreSQL lokalno i prva migracija
-- [ ] Gotovo
+- [x] Gotovo
 
 **Cilj:** lokalno radi PostgreSQL baza, migracije su primijenjene, postoji administratorski račun i radi Django admin na `http://localhost:8000/admin/`.
 
@@ -345,7 +346,7 @@ Ovaj korak je isti u oba plana (P-01 i D-01). Radite ga zajedno.
 - Zaboravljen `makemigrations` nakon promjene modela: `migrate` tada kaže „No migrations to apply”, a tablica ne postoji.
 
 ### P-05 Tailwind, HTMX, osnovni predložak i prijevodi
-- [ ] Gotovo
+- [x] Gotovo
 
 **Cilj:** postoji `templates/base.html` koji učitava CSS koji Tailwind generira i HTMX. Svi tekstovi idu kroz `{% translate %}`, a jedna probna stranica na `/` prikazuje se lokalno.
 
@@ -362,11 +363,11 @@ Ovaj korak je isti u oba plana (P-01 i D-01). Radite ga zajedno.
 - **Sustav prijevoda:** `{% translate "Tekst" %}` u predlošcima i `gettext("Tekst")` u Pythonu označavaju tekst koji se kasnije može prevesti. Zasad je sve na hrvatskom, ali poslije neće trebati prepravljati predloške. [Django: Translation](https://docs.djangoproject.com/en/6.1/topics/i18n/translation/)
 
 **Upute:**
-1. `pip install django-tailwind-cli django-htmx`, dodaj `django_tailwind_cli` i `django_htmx` u `INSTALLED_APPS`, a `django_htmx.middleware.HtmxMiddleware` u `MIDDLEWARE`. Postavi `TAILWIND_CLI_SRC_CSS = "static/css/ulaz.css"` i `TAILWIND_CLI_DIST_CSS = "css/izlaz.css"`. Točne nazive postavki i fiksiranje verzije Tailwinda (`TAILWIND_CLI_VERSION`) provjeri u dokumentaciji paketa.
-2. `static/css/ulaz.css`:
+1. `pip install django-tailwind-cli django-htmx`, dodaj `django_tailwind_cli` i `django_htmx` u `INSTALLED_APPS`, a `django_htmx.middleware.HtmxMiddleware` u `MIDDLEWARE`. Postavi `TAILWIND_CLI_SRC_CSS = "tailwind/ulaz.css"` i `TAILWIND_CLI_DIST_CSS = "css/izlaz.css"`. Točne nazive postavki i fiksiranje verzije Tailwinda (`TAILWIND_CLI_VERSION`) provjeri u dokumentaciji paketa.
+2. `tailwind/ulaz.css` (izvan `static/`, jer bi ga `collectstatic` inače pokušao objaviti i pukao na `@import`):
    ```css
    @import "tailwindcss";
-   @source "../../templates";
+   @source "../templates";
 
    @theme {
      /* boje i fontovi iz Figme dodaje prijatelj u D-14 */

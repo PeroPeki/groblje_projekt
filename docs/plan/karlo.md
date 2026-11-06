@@ -75,11 +75,12 @@ groblje_projekt/
 │   ├── emailovi/        # tekstovi e-mail poruka
 │   └── greske/          # 404.html, 500.html, zaključano
 ├── static/
-│   ├── css/ulaz.css     # izvorni Tailwind CSS (ovo se uređuje)
+│   ├── css/izlaz.css    # CSS koji generira Tailwind (nije u Gitu)
 │   ├── js/              # mali vlastiti JavaScript (npr. upload)
 │   ├── img/             # ikone, logotip
 │   ├── fontovi/         # fontovi koje poslužujemo sami
 │   └── vendor/          # htmx.min.js i slične preuzete datoteke
+├── tailwind/ulaz.css    # izvorni Tailwind CSS (ovo se uređuje; izvan static/ da ga collectstatic ne dira)
 ├── demo/                # izmišljeni demo sadržaj i popis izvora fotografija
 ├── docs/                # odluke, planovi, dijagram modela, popis predložaka
 ├── .env.example         # popis potrebnih varijabli BEZ stvarnih vrijednosti
@@ -614,7 +615,7 @@ Osnove Django predložaka, Tailwinda i HTMX-a, zatim pravi predlošci javnog dij
 ### D-14 Osnove Tailwinda i tema iz Figme
 - [ ] Gotovo
 
-**Cilj:** boje, fontovi i razmaci iz Figme postoje kao Tailwind tema u `static/css/ulaz.css`, fontovi se poslužuju iz `static/fontovi/`, a znaš složiti mobilni raspored Tailwind klasama.
+**Cilj:** boje, fontovi i razmaci iz Figme postoje kao Tailwind tema u `tailwind/ulaz.css`, fontovi se poslužuju iz `static/fontovi/`, a znaš složiti mobilni raspored Tailwind klasama.
 
 **Zašto:** izgled radimo Tailwind CSS-om prema dizajnu u Figmi (odluka 17).
 
@@ -629,10 +630,10 @@ Osnove Django predložaka, Tailwinda i HTMX-a, zatim pravi predlošci javnog dij
 
 **Upute:**
 1. Preuzmi WOFF2 datoteke odabranih fontova (npr. s [Fontsource](https://fontsource.org/) ili sa stranice autora) u `static/fontovi/`, uz datoteku licence.
-2. U `static/css/ulaz.css`:
+2. U `tailwind/ulaz.css`:
    ```css
    @import "tailwindcss";
-   @source "../../templates";
+   @source "../templates";
 
    @font-face {
      font-family: "Atkinson Hyperlegible Next";

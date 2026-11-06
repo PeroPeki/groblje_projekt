@@ -28,8 +28,12 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    # vanjski paketi
+    "django_tailwind_cli",
+    "django_htmx",
     # naše aplikacije
     "korisnici",
+    "jezgra",
 ]
 
 MIDDLEWARE = [
@@ -40,6 +44,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "django_htmx.middleware.HtmxMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -93,6 +98,11 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
+
+# Tailwind: ulaz.css pišemo mi, izlaz.css generira Tailwind (nije u Gitu).
+TAILWIND_CLI_SRC_CSS = "tailwind/ulaz.css"
+TAILWIND_CLI_DIST_CSS = "css/izlaz.css"
+TAILWIND_CLI_VERSION = "4.3.4"  # ista verzija za oba člana tima
 
 
 # E-mail: lokalno se poruke ispisuju u terminal umjesto da se šalju

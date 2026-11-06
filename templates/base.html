@@ -1,0 +1,16 @@
+{% load static i18n tailwind_cli %}<!DOCTYPE html>
+<html lang="hr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block naslov %}Vječna spomen{% endblock %}</title>
+  {% tailwind_css %}
+  <script src="{% static 'vendor/htmx.min.js' %}" defer></script>
+</head>
+{# hx-headers: svaki HTMX zahtjev šalje CSRF token, pa POST zahtjevi prolaze Djangovu zaštitu #}
+<body class="min-h-screen bg-white text-gray-900" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+  <main>
+    {% block sadrzaj %}{% endblock %}
+  </main>
+</body>
+</html>
