@@ -125,6 +125,12 @@ MEDIJI_MAX_SLIKA_BAJTOVA = 30 * 1024**2  # tehnička odluka: dovoljno za HEIC/JP
 MEDIJI_MAX_STRANICA_SLIKE_PX = 2048
 
 
+# QR kodovi: početak linka na pločici, VELIKIM slovima (odluka 18).
+# Lokalno IP adresa računala u kućnoj mreži, da mobitel može otvoriti kod.
+
+QR_BAZNI_URL = env("QR_BAZNI_URL", default="HTTP://LOCALHOST:8000/G/").upper()
+
+
 # E-mail: lokalno se poruke ispisuju u terminal umjesto da se šalju
 
 MAILERS = {

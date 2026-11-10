@@ -7,5 +7,6 @@ django-htmx==1.29.0
 django-tailwind-cli==4.8.2
 psycopg==3.3.8
 psycopg-binary==3.3.8
+segno==1.6.6
 semver==3.1.0
 sqlparse==0.6.1

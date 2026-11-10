@@ -539,7 +539,7 @@ Svi pojmovi iz rječnika postoje kao modeli, u adminu se stvaraju serije pločic
 **Procjena:** 3–4 sata.
 
 ### P-09 Django admin za sve modele i dijagram modela
-- [ ] Gotovo
+- [x] Gotovo
 
 **Cilj:** svi modeli vidljivi su i pretraživi u Django adminu, a u `docs/modeli.md` postoji dijagram modela i njihovih veza.
 
@@ -583,7 +583,7 @@ Svi pojmovi iz rječnika postoje kao modeli, u adminu se stvaraju serije pločic
 **Procjena:** 2–3 sata.
 
 ### P-10 Stvaranje serije pločica, kodovi i QR slike
-- [ ] Gotovo
+- [x] Gotovo
 
 **Cilj:** u adminu se jednom akcijom stvara serija od N pločica, a administrator preuzima CSV s kodovima i aktivacijskim kodovima te ZIP s QR slikama (SVG i PNG) u kojima je link velikim slovima i korekcija razine H.
 
