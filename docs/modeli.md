@@ -22,17 +22,66 @@ erDiagram
   Medij |o--o{ PrijavaSadrzaja : "prijavljen medij"
   PorukaSjecanja |o--o{ PrijavaSadrzaja : "prijavljena poruka"
 
-  Partner { string naziv decimal postotak_provizije bool aktivan }
-  SerijaPlocica { string oznaka int broj_komada decimal maloprodajna_cijena }
-  Plocica { string kod "6 znakova" string aktivacijski_kod_hash string status }
-  Grob { string naziv string oznaka_grobnog_mjesta string vlasnik_ime string lozinka_hash int verzija_pristupa bool javni_prikaz }
-  Pokojnik { string ime string prezime date datum_rodjenja date datum_smrti text biografija }
-  Srodnik { string vrsta_srodstva string ime_i_prezime bool pristanak_na_prikaz }
-  Medij { string vrsta string status file datoteka bool skriven }
-  PorukaSjecanja { string ime_autora text tekst string status bool skrivena }
-  PrijavaSadrzaja { string razlog string status }
-  ObiteljskiLink { string token bool aktivan }
-  ZahtjevZaPristup { string ime string email string status }
+  Partner {
+    string naziv
+    decimal postotak_provizije
+    bool aktivan
+  }
+  SerijaPlocica {
+    string oznaka
+    int broj_komada
+    decimal maloprodajna_cijena
+  }
+  Plocica {
+    string kod "6 znakova"
+    string aktivacijski_kod_hash
+    string status
+  }
+  Grob {
+    string naziv
+    string oznaka_grobnog_mjesta
+    string vlasnik_ime
+    string lozinka_hash
+    int verzija_pristupa
+    bool javni_prikaz
+  }
+  Pokojnik {
+    string ime
+    string prezime
+    date datum_rodjenja
+    date datum_smrti
+    text biografija
+  }
+  Srodnik {
+    string vrsta_srodstva
+    string ime_i_prezime
+    bool pristanak_na_prikaz
+  }
+  Medij {
+    string vrsta
+    string status
+    file datoteka
+    bool skriven
+  }
+  PorukaSjecanja {
+    string ime_autora
+    text tekst
+    string status
+    bool skrivena
+  }
+  PrijavaSadrzaja {
+    string razlog
+    string status
+  }
+  ObiteljskiLink {
+    string token
+    bool aktivan
+  }
+  ZahtjevZaPristup {
+    string ime
+    string email
+    string status
+  }
 ```
 
 Model `NeuspjeliPokusaj` (aplikacija `pristup`) nije vezan stranim ključem: bilježi
