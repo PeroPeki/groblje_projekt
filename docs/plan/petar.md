@@ -930,7 +930,7 @@ Skeniranje koda vodi na zaključani ekran, a točna lozinka na profil. Pristup j
 Obitelj aktivira pločicu čarobnjakom, prijavljuje se e-mailom i upravlja grobom.
 
 ### P-17 Prijava vlasnika linkom na e-mail
-- [ ] Gotovo
+- [x] Gotovo
 
 **Cilj:** kontakt za prijavu upiše e-mail na `/vlasnik/prijava/` i dobije jednokratni link koji vrijedi 15 minuta. Klikom na link prijavljen je u vlasnički dio.
 

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% load i18n %}
+{# Varijable: link_ne_vrijedi (bool), token (str; postoji samo kad link_ne_vrijedi nije True) #}
+{# Forma šalje POST na istu adresu; obavezni su csrf_token i skriveno polje name="sesame". #}
+
+{% block naslov %}{% translate "Prijava" %}{% endblock %}
+
+{% block sadrzaj %}
+<div class="p-6 space-y-4 text-lg">
+  {% if link_ne_vrijedi %}
+    <h1 class="text-2xl font-semibold">{% translate "Ovaj link više ne vrijedi" %}</h1>
+    <p>{% translate "Link vrijedi 15 minuta i može se iskoristiti samo jednom." %}</p>
+    <p><a class="underline" href="{% url 'vlasnik:prijava' %}">{% translate "Zatražite novi link" %}</a></p>
+  {% else %}
+    <h1 class="text-2xl font-semibold">{% translate "Potvrdite prijavu" %}</h1>
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="sesame" value="{{ token }}">
+      <button class="w-full rounded-lg bg-gray-900 px-5 py-3 text-lg text-white" type="submit">
+        {% translate "Prijavi me" %}
+      </button>
+    </form>
+  {% endif %}
+</div>
+{% endblock %}

@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "pristup",
     "mediji",
     "knjiga",
+    "vlasnik",
 ]
 
 MIDDLEWARE = [
@@ -149,6 +150,8 @@ OGRANICENJA_POKUSAJA = {
         "po_ip": (5, 15),  # ista IP adresa i isti grob
         "po_cilju": (30, 60),  # isti grob, s bilo koje adrese
     },
+    # Linkovi za prijavu: najviše 3 za isti e-mail u 15 minuta (P-17).
+    "prijava": {"po_ip": (3, 15), "po_cilju": (3, 15)},
 }
 
 # Na hostingu je aplikacija iza posrednika (proxyja), pa se IP adresa posjetitelja
@@ -165,10 +168,41 @@ PROXY_BROJ_POSREDNIKA = env.int("PROXY_BROJ_POSREDNIKA", default=1)
 QR_BAZNI_URL = env("QR_BAZNI_URL", default="HTTP://LOCALHOST:8000/G/").upper()
 
 
-# E-mail: lokalno se poruke ispisuju u terminal umjesto da se šalju
+# Prijava vlasnika linkom na e-mail (odluka 3, P-17)
 
-MAILERS = {
-    "default": {
-        "BACKEND": "django.core.mail.backends.console.EmailBackend",
-    },
-}
+AUTHENTICATION_BACKENDS = [
+    "django.contrib.auth.backends.ModelBackend",  # admin (korisničko ime i lozinka)
+    "sesame.backends.ModelBackend",  # link iz e-maila
+]
+SESAME_MAX_AGE = 15 * 60  # link vrijedi 15 minuta
+SESAME_ONE_TIME = True  # i samo jednom
+SESAME_TOKENS = ["sesame.tokens_v2"]
+LOGIN_URL = "vlasnik:prijava"
+SESSION_COOKIE_AGE = 30 * 24 * 3600  # prijava traje 30 dana
+
+
+# E-mail. Bez EMAIL_HOST u .env poruke se samo ispisuju u terminal (lokalni razvoj),
+# a s njim se šalju preko SMTP poslužitelja (hosting, P-42).
+
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Vječna spomen <noreply@localhost>")
+
+if env("EMAIL_HOST", default=""):
+    MAILERS = {
+        "default": {
+            "BACKEND": "django.core.mail.backends.smtp.EmailBackend",
+            "OPTIONS": {
+                "host": env("EMAIL_HOST"),
+                "port": env.int("EMAIL_PORT", default=587),
+                "username": env("EMAIL_HOST_USER", default=""),
+                "password": env("EMAIL_HOST_PASSWORD", default=""),
+                "use_tls": env.bool("EMAIL_USE_TLS", default=True),
+                "timeout": 20,
+            },
+        },
+    }
+else:
+    MAILERS = {
+        "default": {
+            "BACKEND": "django.core.mail.backends.console.EmailBackend",
+        },
+    }
