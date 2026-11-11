@@ -688,7 +688,7 @@ Skeniranje koda vodi na zaključani ekran, a točna lozinka na profil. Pristup j
 - Django uzorci razlikuju velika i mala slova, pa `path("g/<str:kod>/")` ne hvata `/G/...` iz QR koda. Zato `re_path` s `[gG]`.
 
 ### P-12 Zaključani ekran, lozinka groba i pamćenje uređaja
-- [ ] Gotovo
+- [x] Gotovo
 
 **Cilj:** posjetitelj bez pristupa vidi zaključani ekran s nazivom groba i nazivom partnera. Nakon točne lozinke preglednik dobije potpisani kolačić na 12 mjeseci i više se ne pita lozinka. Grob s uključenim javnim prikazom otvara se bez lozinke.
 

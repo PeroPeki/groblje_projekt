@@ -97,6 +97,23 @@ zaključavanje nakon više pogrešnih pokušaja (P-13).
 - **Živući srodnici imaju samo ime** (odluka 3a, GDPR). Ograničenje u bazi traži da srodnik ima **ili** povezanog pokojnika **ili** ime živuće osobe. Za živuće osobe nema polja za datum rođenja, kontakt ni sliku.
 - **Brisanje je zaštićeno.** Partner sa serijom i serija s pločicama ne mogu se obrisati (`PROTECT`). Grob u adminu briše samo superuser (OP-7).
 
+## Pristup grobu (P-12)
+
+Sadržaj groba vidi tko ispuni barem jedno:
+
+- grob ima uključen `javni_prikaz`;
+- prijavljen je kao kontakt za prijavu tog groba ili kao superuser;
+- preglednik ima valjan **kolačić pristupa** `vs_g<id groba>`.
+
+Kolačić nastaje nakon točne lozinke (kasnije i nakon ulaska obiteljskim linkom). Potpisan
+je (`SECRET_KEY`), `HttpOnly`, `SameSite=Lax`, u produkciji i `Secure`, a traje 12 mjeseci.
+Vrijednost je `<id groba>:<verzija_pristupa>:<id obiteljskog linka ili ->`, bez lozinke.
+Povećanje `Grob.verzija_pristupa` zato odjavljuje sve zapamćene uređaje, a poništavanje
+obiteljskog linka odjavljuje one koji su ušli preko njega. Logika je u `pristup/kolacici.py`.
+
+Lozinka groba ima najmanje 6 znakova (`jezgra/lozinke.py`), što provjerava i sam
+`Grob.postavi_lozinku()`.
+
 ## QR kodovi (P-10)
 
 Link je VELIKIM slovima, s korekcijom pogrešaka H, pa QR koristi alfanumerički način:

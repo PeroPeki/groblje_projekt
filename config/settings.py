@@ -5,6 +5,7 @@ Sve tajne i vrijednosti koje ovise o okruženju (računalo, hosting) čitaju se
 iz datoteke .env. Primjer je u .env.example.
 """
 
+import sys
 from pathlib import Path
 
 import environ
@@ -87,6 +88,11 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
+
+# SAMO u testovima: brzi hasher, da testovi ne troše sekunde na svaku lozinku.
+# Na poslužitelju se ova grana nikad ne izvršava (tamo se ne pokreće "manage.py test").
+if "test" in sys.argv[1:2]:
+    PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 
 
 # Jezik i vrijeme

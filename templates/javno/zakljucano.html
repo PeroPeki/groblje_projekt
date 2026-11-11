@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% load i18n %}
+{# Varijable: naziv_groba (str), naziv_partnera (str), kod (str), forma (LozinkaForm: polje lozinka), url_zahtjeva (str ili None) #}
+{# Ovdje se NE smiju prikazati imena pokojnika, datumi ni slike (odluka 5). #}
+{# Forma šalje POST na istu adresu; obavezni su csrf_token i name="lozinka". #}
+
+{% block naslov %}{{ naziv_groba }}{% endblock %}
+
+{% block sadrzaj %}
+<div class="p-6 space-y-4 text-lg">
+  <h1 class="text-2xl font-semibold">{{ naziv_groba }}</h1>
+  <p>{{ naziv_partnera }}</p>
+  <p>{% translate "Ova stranica je zaštićena lozinkom. Lozinku ste dobili od obitelji." %}</p>
+
+  <form method="post" class="space-y-3">
+    {% csrf_token %}
+    <label class="block font-semibold" for="{{ forma.lozinka.id_for_label }}">{% translate "Lozinka" %}</label>
+    <input class="block w-full rounded-lg border p-3 text-lg" type="password"
+           name="{{ forma.lozinka.html_name }}" id="{{ forma.lozinka.id_for_label }}"
+           autocomplete="current-password" required
+           {% if forma.lozinka.errors %}aria-invalid="true" aria-describedby="greska-lozinka"{% endif %}>
+    {% if forma.lozinka.errors %}
+      <p id="greska-lozinka" class="font-semibold text-red-800">
+        {% for greska in forma.lozinka.errors %}{{ greska }} {% endfor %}
+      </p>
+    {% endif %}
+    <button class="w-full rounded-lg bg-gray-900 px-5 py-3 text-lg text-white" type="submit">
+      {% translate "Otvori" %}
+    </button>
+  </form>
+
+  {% if url_zahtjeva %}
+    <p><a class="underline" href="{{ url_zahtjeva }}">{% translate "Nemate lozinku? Zatražite pristup" %}</a></p>
+  {% endif %}
+</div>
+{% endblock %}

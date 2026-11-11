@@ -1,13 +1,17 @@
-"""Testovi javnog pristupa grobu: ruta /g/<kod>/, stranica groba i profil."""
+"""Testovi javnog pristupa grobu: ruta /g/<kod>/, lozinka, pamćenje uređaja."""
 
 import re
 from datetime import date
 from decimal import Decimal
 
-from django.test import TestCase
+from django.core.exceptions import ValidationError
+from django.http import HttpResponse
+from django.test import TestCase, override_settings
 
 from jezgra.models import Grob, Partner, Plocica, Pokojnik, SerijaPlocica
 from korisnici.models import Korisnik
+from pristup import kolacici
+from pristup.models import ObiteljskiLink
 
 
 def napravi_plocicu(serija, kod):
@@ -15,11 +19,11 @@ def napravi_plocicu(serija, kod):
     return Plocica.objects.create(serija=serija, kod=kod, aktivacijski_kod_hash="!")
 
 
-def napravi_grob(serija, kod, naziv, korisnik):
+def napravi_grob(serija, kod, naziv, korisnik, lozinka=None, javni_prikaz=False):
     plocica = napravi_plocicu(serija, kod)
     plocica.status = Plocica.Status.AKTIVIRANA
     plocica.save()
-    return Grob.objects.create(
+    grob = Grob(
         plocica=plocica,
         partner=serija.partner,
         naziv=naziv,
@@ -27,10 +31,17 @@ def napravi_grob(serija, kod, naziv, korisnik):
         vlasnik_ime="Vlasnik Probni",
         kontakt_za_prijavu=korisnik,
         lozinka_hash="!",
+        javni_prikaz=javni_prikaz,
     )
+    if lozinka:
+        grob.postavi_lozinku(lozinka)
+    grob.save()
+    return grob
 
 
 class RutaGrobaTest(TestCase):
+    """Adrese i prikaz. Grobovi su ovdje javni, da lozinka ne smeta (pristup: PristupTest)."""
+
     @classmethod
     def setUpTestData(cls):
         partner = Partner.objects.create(naziv="Partner Tajni Naziv")
@@ -39,13 +50,17 @@ class RutaGrobaTest(TestCase):
         )
         korisnik = Korisnik.objects.create(username="vlasnik", email="vlasnik@example.com")
 
-        cls.grob_dva = napravi_grob(cls.serija, "K7M4QX", "Obitelj Probić", korisnik)
+        cls.grob_dva = napravi_grob(
+            cls.serija, "K7M4QX", "Obitelj Probić", korisnik, javni_prikaz=True
+        )
         cls.ana = Pokojnik.objects.create(
             grob=cls.grob_dva, ime="Ana", prezime="Probić", datum_smrti=date(2020, 11, 5)
         )
         cls.ivo = Pokojnik.objects.create(grob=cls.grob_dva, ime="Ivo", prezime="Probić")
 
-        cls.grob_jedan = napravi_grob(cls.serija, "AB2CD3", "Obitelj Primjerić", korisnik)
+        cls.grob_jedan = napravi_grob(
+            cls.serija, "AB2CD3", "Obitelj Primjerić", korisnik, javni_prikaz=True
+        )
         cls.mara = Pokojnik.objects.create(grob=cls.grob_jedan, ime="Mara", prezime="Primjerić")
 
         napravi_plocicu(cls.serija, "NEAKT2")
@@ -143,3 +158,151 @@ class RutaGrobaTest(TestCase):
     def test_predugacak_ili_neobican_id_pokojnika_vraca_404(self):
         self.assertEqual(self.client.get("/g/K7M4QX/" + "9" * 5000 + "/").status_code, 404)
         self.assertEqual(self.client.get("/g/K7M4QX/٣/").status_code, 404)
+
+
+class PristupTest(TestCase):
+    """Zaključani ekran, lozinka groba i pamćenje uređaja (odluka 5, P-12)."""
+
+    LOZINKA = "tajna-lozinka"
+
+    @classmethod
+    def setUpTestData(cls):
+        partner = Partner.objects.create(naziv="Gradsko groblje Primjerovo")
+        serija = SerijaPlocica.objects.create(partner=partner, oznaka="TEST-P12", broj_komada=2)
+        cls.vlasnik = Korisnik.objects.create(username="vlasnik", email="vlasnik@example.com")
+        cls.grob = napravi_grob(serija, "K7M4QX", "Obitelj Probić", cls.vlasnik, lozinka=cls.LOZINKA)
+        cls.ana = Pokojnik.objects.create(
+            grob=cls.grob, ime="Ana", prezime="Probić", biografija="Voljela je more."
+        )
+        cls.ivo = Pokojnik.objects.create(grob=cls.grob, ime="Ivo", prezime="Probić")
+        cls.adresa_groba = "/g/K7M4QX/"
+        cls.adresa_profila = f"/g/K7M4QX/{cls.ana.pk}/"
+
+    def upisi_lozinku(self, lozinka, adresa=None):
+        return self.client.post(adresa or self.adresa_profila, {"lozinka": lozinka})
+
+    # --- bez pristupa --------------------------------------------------------
+
+    def test_bez_kolacica_vidi_se_zakljucani_ekran_bez_podataka_o_pokojnicima(self):
+        for adresa in (self.adresa_groba, self.adresa_profila):
+            with self.subTest(adresa=adresa):
+                odgovor = self.client.get(adresa)
+                self.assertEqual(odgovor.status_code, 200)
+                self.assertTemplateUsed(odgovor, "javno/zakljucano.html")
+                self.assertContains(odgovor, "Obitelj Probić")
+                self.assertContains(odgovor, "Gradsko groblje Primjerovo")
+                for tajno in ("Ana", "Ivo", "Voljela je more", "Polje X", "Vlasnik Probni"):
+                    self.assertNotContains(odgovor, tajno)
+
+    def test_zakljucani_ekran_ne_otkriva_koji_pokojnici_postoje(self):
+        postojeci = self.client.get(self.adresa_profila)
+        nepostojeci = self.client.get("/g/K7M4QX/999999/")
+        self.assertEqual(postojeci.status_code, nepostojeci.status_code)
+        self.assertTemplateUsed(nepostojeci, "javno/zakljucano.html")
+
+    def test_pogresna_lozinka_ne_daje_pristup(self):
+        odgovor = self.upisi_lozinku("kriva-lozinka")
+        self.assertEqual(odgovor.status_code, 200)
+        self.assertContains(odgovor, "Lozinka nije točna.")
+        self.assertNotIn(kolacici.naziv(self.grob), odgovor.cookies)
+        self.assertTemplateUsed(self.client.get(self.adresa_profila), "javno/zakljucano.html")
+
+    def test_prazna_lozinka_ne_daje_pristup(self):
+        odgovor = self.upisi_lozinku("")
+        self.assertTemplateUsed(odgovor, "javno/zakljucano.html")
+        self.assertNotIn(kolacici.naziv(self.grob), odgovor.cookies)
+
+    # --- točna lozinka i pamćenje uređaja ------------------------------------
+
+    def test_tocna_lozinka_postavlja_kolacic_i_otvara_profil(self):
+        odgovor = self.upisi_lozinku(self.LOZINKA)
+        self.assertRedirects(odgovor, self.adresa_profila)  # Post/Redirect/Get
+        self.assertContains(self.client.get(self.adresa_profila), "Ana Probić")
+        # Isti kolačić vrijedi za cijeli grob.
+        self.assertContains(self.client.get(self.adresa_groba), "Ivo Probić")
+
+    def test_kolacic_je_httponly_samesite_lax_secure_i_traje_godinu_dana(self):
+        kolacic = self.upisi_lozinku(self.LOZINKA).cookies[kolacici.naziv(self.grob)]
+        self.assertTrue(kolacic["httponly"])
+        self.assertEqual(kolacic["samesite"], "Lax")
+        self.assertTrue(kolacic["secure"])  # testovi rade s DEBUG=False, kao produkcija
+        self.assertEqual(kolacic["max-age"], 365 * 24 * 3600)
+
+    @override_settings(DEBUG=True)
+    def test_lokalno_bez_https_a_kolacic_nije_secure(self):
+        kolacic = self.upisi_lozinku(self.LOZINKA).cookies[kolacici.naziv(self.grob)]
+        self.assertFalse(kolacic["secure"])
+
+    def test_kolacic_ne_sadrzi_lozinku(self):
+        kolacic = self.upisi_lozinku(self.LOZINKA).cookies[kolacici.naziv(self.grob)]
+        self.assertNotIn(self.LOZINKA, kolacic.value)
+
+    def test_izmijenjen_kolacic_ne_daje_pristup(self):
+        self.upisi_lozinku(self.LOZINKA)
+        naziv = kolacici.naziv(self.grob)
+        izvorni = self.client.cookies[naziv].value
+        for lazni in (
+            izvorni[:-2] + ("xx" if not izvorni.endswith("xx") else "yy"),  # pokvaren potpis
+            f"{self.grob.pk}:{self.grob.verzija_pristupa}:-",  # bez potpisa
+            izvorni.replace(f"{self.grob.pk}:1:", f"{self.grob.pk}:2:", 1),  # druga verzija
+            "",
+        ):
+            with self.subTest(lazni=lazni):
+                self.client.cookies[naziv] = lazni
+                odgovor = self.client.get(self.adresa_profila)
+                self.assertTemplateUsed(odgovor, "javno/zakljucano.html")
+
+    def test_povecana_verzija_pristupa_odjavljuje_uredjaj(self):
+        self.upisi_lozinku(self.LOZINKA)
+        Grob.objects.filter(pk=self.grob.pk).update(verzija_pristupa=2)
+        self.assertTemplateUsed(self.client.get(self.adresa_profila), "javno/zakljucano.html")
+
+    def test_kolacic_jednog_groba_ne_otvara_drugi_grob(self):
+        drugi = napravi_grob(
+            self.grob.plocica.serija, "AB2CD3", "Obitelj Primjerić", self.vlasnik, lozinka="druga-lozinka"
+        )
+        Pokojnik.objects.create(grob=drugi, ime="Mara", prezime="Primjerić")
+        self.upisi_lozinku(self.LOZINKA)
+        # Čak i ako posjetitelj svoj valjani kolačić podmetne pod imenom drugog groba.
+        self.client.cookies[kolacici.naziv(drugi)] = self.client.cookies[kolacici.naziv(self.grob)].value
+        self.assertTemplateUsed(self.client.get("/g/AB2CD3/"), "javno/zakljucano.html")
+
+    def test_pristup_preko_obiteljskog_linka_prestaje_kad_se_link_ponisti(self):
+        link = ObiteljskiLink.objects.create(grob=self.grob)
+        odgovor = HttpResponse()
+        kolacici.dodijeli_pristup(odgovor, self.grob, link=link)
+        naziv = kolacici.naziv(self.grob)
+        self.client.cookies[naziv] = odgovor.cookies[naziv].value
+        self.assertContains(self.client.get(self.adresa_profila), "Ana Probić")
+
+        ObiteljskiLink.objects.filter(pk=link.pk).update(aktivan=False)
+        self.assertTemplateUsed(self.client.get(self.adresa_profila), "javno/zakljucano.html")
+
+    # --- pristup bez lozinke -------------------------------------------------
+
+    def test_javni_prikaz_otvara_grob_bez_lozinke(self):
+        Grob.objects.filter(pk=self.grob.pk).update(javni_prikaz=True)
+        self.assertContains(self.client.get(self.adresa_profila), "Ana Probić")
+
+    def test_kontakt_za_prijavu_i_superuser_ne_trebaju_lozinku(self):
+        admin = Korisnik.objects.create(username="admin", email="admin@example.com", is_superuser=True)
+        for korisnik in (self.vlasnik, admin):
+            with self.subTest(korisnik=korisnik):
+                self.client.force_login(korisnik)
+                self.assertContains(self.client.get(self.adresa_profila), "Ana Probić")
+
+    def test_drugi_prijavljeni_korisnik_treba_lozinku(self):
+        self.client.force_login(Korisnik.objects.create(username="netko", email="netko@example.com"))
+        self.assertTemplateUsed(self.client.get(self.adresa_profila), "javno/zakljucano.html")
+
+    # --- lozinka groba -------------------------------------------------------
+
+    def test_lozinka_kraca_od_6_znakova_ne_moze_se_postaviti(self):
+        with self.assertRaises(ValidationError):
+            self.grob.postavi_lozinku("12345")
+        self.grob.postavi_lozinku("123456")
+
+    def test_lozinka_je_u_bazi_samo_kao_hash(self):
+        self.grob.refresh_from_db()
+        self.assertNotIn(self.LOZINKA, self.grob.lozinka_hash)
+        self.assertTrue(self.grob.provjeri_lozinku(self.LOZINKA))
