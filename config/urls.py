@@ -10,5 +10,6 @@ urlpatterns = [
     path("htmx-proba/", jezgra.htmx_proba, name="htmx_proba"),
     path("robots.txt", jezgra.robots_txt, name="robots_txt"),
     path("admin/", admin.site.urls),
+    path("vlasnik/", include("vlasnik.urls")),
     path("", include("pristup.urls")),
 ]

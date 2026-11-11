@@ -1,0 +1,11 @@
+{% load i18n %}{% autoescape off %}{% blocktranslate %}Poštovani,
+
+zatražili ste prijavu u Vječnu spomen. Otvorite ovaj link i potvrdite prijavu:
+
+{{ link }}
+
+Link vrijedi {{ minuta }} minuta i može se iskoristiti samo jednom.
+
+Ako prijavu niste zatražili Vi, ovu poruku slobodno zanemarite.
+
+Vječna spomen{% endblocktranslate %}{% endautoescape %}

@@ -36,14 +36,16 @@ class ObiteljskiLink(models.Model):
 
 
 class NeuspjeliPokusaj(models.Model):
-    """Pogrešna lozinka ili aktivacijski kod, za zaključavanje (P-13)."""
+    """Evidencija za ograničenja: pogrešna lozinka ili aktivacijski kod (P-13),
+    ali i poslani linkovi za prijavu (P-17). Granice su u OGRANICENJA_POKUSAJA."""
 
     class Vrsta(models.TextChoices):
         LOZINKA = "lozinka", _("lozinka groba")
         AKTIVACIJA = "aktivacija", _("aktivacijski kod")
+        PRIJAVA = "prijava", _("poslani link za prijavu")
 
     vrsta = models.CharField(_("vrsta"), max_length=20, choices=Vrsta.choices)
-    cilj = models.CharField(_("cilj"), max_length=50, help_text=_("ID groba ili kod pločice"))
+    cilj = models.CharField(_("cilj"), max_length=50, help_text=_("ID groba, kod pločice ili otisak e-mail adrese"))
     ip = models.GenericIPAddressField(_("IP adresa"))
     vrijeme = models.DateTimeField(_("vrijeme"), auto_now_add=True)
 

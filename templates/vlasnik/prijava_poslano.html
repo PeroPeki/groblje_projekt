@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% load i18n %}
+{# Varijable: nema. Ista poruka prikazuje se postojala adresa u sustavu ili ne. #}
+
+{% block naslov %}{% translate "Provjerite e-poštu" %}{% endblock %}
+
+{% block sadrzaj %}
+<div class="p-6 space-y-4 text-lg">
+  <h1 class="text-2xl font-semibold">{% translate "Provjerite e-poštu" %}</h1>
+  <p>{% translate "Ako je adresa upisana u sustavu, poslali smo Vam link za prijavu." %}</p>
+  <p>{% translate "Link vrijedi 15 minuta. Ako poruke nema, pogledajte i neželjenu poštu." %}</p>
+  <p><a class="underline" href="{% url 'vlasnik:prijava' %}">{% translate "Upiši drugu adresu" %}</a></p>
+</div>
+{% endblock %}

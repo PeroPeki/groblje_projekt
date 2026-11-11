@@ -91,6 +91,10 @@ zaključavanje nakon više pogrešnih pokušaja (P-13). Granice su u postavci
 ili 30 s bilo koje adrese u sat vremena. Blokada traje isto toliko, računajući od zadnjeg pogrešnog pokušaja, i dok traje,
 lozinka se uopće ne provjerava. Zapise starije od 24 sata briše naredba `ocisti_pokusaje`.
 
+Ista evidencija broji i poslane linkove za prijavu (vrsta `prijava`, najviše 3 za isti
+e-mail u 15 minuta). Kao cilj se sprema otisak adrese s ključem (HMAC), a ne sama adresa. S jedne IP adrese
+prolazi najviše 10 zahtjeva u 15 minuta.
+
 ## Ključne odluke
 
 - **Jedan QR po grobu** (odluka 4). `Plocica` i `Grob` su vezani jedan-na-jedan, a u grobu može biti više pokojnika. Pločica postoji prije groba: izrađuje se u seriji, a grob nastaje tek kad je obitelj aktivira.
@@ -116,6 +120,14 @@ obiteljskog linka odjavljuje one koji su ušli preko njega. Logika je u `pristup
 
 Lozinka groba ima najmanje 6 znakova (`jezgra/lozinke.py`), što provjerava i sam
 `Grob.postavi_lozinku()`.
+
+## Prijava vlasnika (P-17)
+
+Vlasnički dio nema lozinku. Kontakt za prijavu upiše e-mail i dobije link
+(`django-sesame`) koji vrijedi 15 minuta i samo jednom. Otvaranje linka prikazuje
+gumb „Prijavi me”, a prijavljuje tek klik na njega. Odgovor je isti postojala
+adresa u sustavu ili ne. Prijava traje 30 dana. Administratori (`is_staff`) link ne
+dobivaju: oni se prijavljuju lozinkom u `/admin/`.
 
 ## QR kodovi (P-10)
 

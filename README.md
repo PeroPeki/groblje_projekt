@@ -79,6 +79,12 @@ Prvi put se preuzima Tailwind program (~80 MB), pa treba pričekati. Nakon toga 
 
 Tailwind prati predloške i sam ponovno generira CSS kad promijeniš klasu: samo osvježi stranicu.
 
+### E-mail u razvoju
+
+Lokalno se e-mailovi ne šalju, nego se ispisuju u terminal u kojem radi `runserver`.
+Link za prijavu (`/vlasnik/prijava/`) zato kopiraš iz terminala. Za stvarno slanje
+upisuju se `EMAIL_*` varijable iz `.env.example`.
+
 ### 5. Probni grob
 
 ```
@@ -127,6 +133,7 @@ tek u 3.14.
 | `korisnici/` | vlastiti model korisnika `Korisnik` |
 | `jezgra/` | glavni modeli (partner, pločica, grob, pokojnik), admin i probna početna stranica |
 | `pristup/` | javni dio: `/g/<KOD>/`, zaključani ekran, lozinka groba, pamćenje uređaja, ograničenje pokušaja |
+| `vlasnik/` | vlasnički dio: prijava linkom na e-mail, popis grobova |
 | `templates/` | svi HTML predlošci (`base.html` je okvir za sve stranice) |
 | `static/` | CSS, JavaScript, slike i fontovi koji se poslužuju pregledniku |
 | `tailwind/ulaz.css` | izvorni Tailwind CSS i tema (boje, fontovi) |
