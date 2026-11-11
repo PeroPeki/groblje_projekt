@@ -113,10 +113,11 @@ python manage.py test
 
 Testovi sami stvaraju privremenu bazu i svoje podatke, pa ne diraju tvoju. Na GitHubu
 ih pri svakom pull requestu pokreće GitHub Actions (`.github/workflows/testovi.yml`),
-na PostgreSQL-u 18 i na SQLite-u. PR s testom koji pada ne spaja se.
+na PostgreSQL-u 18 i na SQLite-u.
 
 Lokalno se razvija na Pythonu 3.14, a GitHub Actions koristi 3.13 (ista verzija
-planirana je i za poslužitelj), pa kod mora raditi na obje.
+planirana je i za poslužitelj). Zato u kodu ne koristimo mogućnosti koje postoje
+tek u 3.14.
 
 ## Struktura
 

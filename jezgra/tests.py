@@ -1,5 +1,7 @@
 """Testovi zajedničkih dijelova: kodovi pločica, QR, noindex i sigurnosna zaglavlja."""
 
+from unittest import mock
+
 from django.contrib.auth.hashers import check_password
 from django.test import TestCase, override_settings
 
@@ -9,22 +11,32 @@ from jezgra.qr import link_za_kod, qr_za_kod
 
 
 class KodoviTest(TestCase):
-    def test_kod_plocice_ima_6_znakova_bez_dvosmislenih(self):
-        for _ in range(1000):
-            kod = kodovi.novi_kod_plocice()
-            self.assertEqual(len(kod), 6)
-            self.assertFalse(set(kod) & set("0O1IL"), kod)
+    def test_abeceda_nema_dvosmislenih_znakova(self):
+        self.assertFalse(set(kodovi.ABECEDA) & set("0O1IL"))
+        self.assertEqual(kodovi.ABECEDA, kodovi.ABECEDA.upper())
 
-    def test_aktivacijski_kod_ima_8_znakova_bez_dvosmislenih(self):
+    def test_kod_plocice_ima_6_znakova_iz_abecede(self):
+        for _ in range(1000):
+            kod = kodovi.novi_kod(kodovi.DULJINA_KODA_PLOCICE)
+            self.assertEqual(len(kod), 6)
+            self.assertLessEqual(set(kod), set(kodovi.ABECEDA), kod)
+
+    def test_aktivacijski_kod_ima_8_znakova_iz_abecede(self):
         for _ in range(1000):
             kod = kodovi.novi_aktivacijski_kod()
             self.assertEqual(len(kod), 8)
-            self.assertFalse(set(kod) & set("0O1IL"), kod)
+            self.assertLessEqual(set(kod), set(kodovi.ABECEDA), kod)
 
-    def test_kodovi_su_velikim_slovima_i_ne_ponavljaju_se(self):
-        uzorak = {kodovi.novi_kod_plocice() for _ in range(200)}
+    def test_kodovi_se_ne_ponavljaju(self):
+        uzorak = {kodovi.novi_kod(6) for _ in range(200)}
         self.assertGreater(len(uzorak), 195)
-        self.assertTrue(all(kod == kod.upper() for kod in uzorak))
+
+    def test_novi_kod_plocice_preskace_kod_koji_vec_postoji(self):
+        partner = Partner.objects.create(naziv="Probni partner")
+        serija = SerijaPlocica.objects.create(partner=partner, oznaka="TEST-KOD2", broj_komada=1)
+        Plocica.objects.create(serija=serija, kod="K7M4QX", aktivacijski_kod_hash="!")
+        with mock.patch.object(kodovi, "novi_kod", side_effect=["K7M4QX", "AB2CD3"]):
+            self.assertEqual(kodovi.novi_kod_plocice(), "AB2CD3")
 
     def test_aktivacijski_kod_je_u_bazi_samo_kao_hash(self):
         partner = Partner.objects.create(naziv="Probni partner")
