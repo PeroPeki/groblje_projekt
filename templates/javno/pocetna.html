@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block sadrzaj %}
+<div class="p-6 space-y-6">
+  <h1 class="text-4xl font-semibold">{% translate "Vječna spomen" %}</h1>
+  <p class="text-lg">{% translate "Probna stranica: ako je naslov velik, Tailwind radi." %}</p>
+
+  <button class="rounded-lg bg-gray-900 px-5 py-3 text-lg text-white"
+          hx-post="{% url 'htmx_proba' %}" hx-target="#htmx-odgovor" hx-swap="innerHTML">
+    {% translate "Isprobaj HTMX" %}
+  </button>
+  <div id="htmx-odgovor"></div>
+</div>
+{% endblock %}
