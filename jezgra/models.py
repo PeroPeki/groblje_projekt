@@ -11,6 +11,8 @@ from django.db import models
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 
+from .lozinke import normaliziraj_lozinku_groba, provjeri_lozinku_groba
+
 
 # ---------------------------------------------------------------------------
 # P-06: partner, serija pločica, pločica
@@ -152,10 +154,12 @@ class Grob(models.Model):
         return f"{self.naziv} ({self.plocica.kod})"
 
     def postavi_lozinku(self, lozinka: str) -> None:
-        self.lozinka_hash = make_password(lozinka)
+        """Sprema samo hash. Prekratka lozinka baca ValidationError (odluka 5)."""
+        provjeri_lozinku_groba(lozinka)
+        self.lozinka_hash = make_password(normaliziraj_lozinku_groba(lozinka))
 
     def provjeri_lozinku(self, lozinka: str) -> bool:
-        return check_password(lozinka, self.lozinka_hash)
+        return check_password(normaliziraj_lozinku_groba(lozinka), self.lozinka_hash)
 
 
 class Pokojnik(models.Model):
