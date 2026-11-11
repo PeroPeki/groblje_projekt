@@ -9,7 +9,7 @@ Svaki korak koji dodaje predložak dopunjuje ovu tablicu.
 
 | Predložak | Pogled | URL | Varijable | Napomene |
 |---|---|---|---|---|
-| `base.html` | – | – | `csrf_token` (automatski) | Blokovi `naslov` i `sadrzaj`. Na `<body>` mora ostati `hx-headers` s CSRF tokenom. |
+| `base.html` | – | – | `csrf_token` (automatski) | Blokovi `naslov` i `sadrzaj`. Na `<body>` mora ostati `hx-headers` s CSRF tokenom, a u `<head>` oznake `<meta name="robots" content="noindex, nofollow">` i `<meta name="referrer" content="same-origin">` (P-15). |
 | `javno/pocetna.html` | `jezgra.views.pocetna` | `/` | – | Probna stranica. Gumb ima `hx-post`, `hx-target="#htmx-odgovor"`, `hx-swap`. |
 | `javno/_htmx_proba.html` | `jezgra.views.htmx_proba` | `/htmx-proba/` (POST) | – | Komad HTML-a koji HTMX umeće u `#htmx-odgovor`. |
 | `aktivacija/unos_koda.html` | `pristup.views.grob` | `/g/<KOD>/` | `kod` (str, 6 znakova) | Prikazuje se za **nepostojeću i za neaktiviranu** pločicu, uvijek jednako. Ne smije prikazati ništa drugo o pločici (partner, serija). Forma za aktivacijski kod dolazi u P-18. |

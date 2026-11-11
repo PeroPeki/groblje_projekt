@@ -49,7 +49,14 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django_htmx.middleware.HtmxMiddleware",
+    "jezgra.middleware.NoIndexMiddleware",
 ]
+
+# Sigurnosna zaglavlja (P-15)
+X_FRAME_OPTIONS = "DENY"  # stranica se ne može ugraditi u tuđi <iframe>
+SECURE_CONTENT_TYPE_NOSNIFF = True
+# Adresa s tokenom obiteljskog linka ne smije se poslati drugim stranicama.
+SECURE_REFERRER_POLICY = "same-origin"
 
 ROOT_URLCONF = "config.urls"
 
