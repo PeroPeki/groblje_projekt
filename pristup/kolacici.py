@@ -7,6 +7,7 @@ Potpis (SECRET_KEY + SALT) sprječava da posjetitelj sam izmijeni vrijednost.
 """
 
 from django.conf import settings
+from django.urls import reverse
 
 SALT = "pristup-grobu"
 GODINA = 365 * 24 * 3600  # odluka 5: uređaj se pamti oko 12 mjeseci
@@ -23,6 +24,8 @@ def dodijeli_pristup(response, grob, link=None) -> None:
         vrijednost,
         salt=SALT,
         max_age=GODINA,
+        # Kolačić se šalje samo na adrese tog groba, a ne uz svaki zahtjev.
+        path=reverse("pristup:grob", kwargs={"kod": grob.plocica.kod}),
         httponly=True,
         secure=not settings.DEBUG,
         samesite="Lax",

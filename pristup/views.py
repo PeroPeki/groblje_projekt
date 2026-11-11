@@ -3,6 +3,7 @@
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.translation import gettext as _
 from django.views.decorators.cache import never_cache
+from django.views.decorators.debug import sensitive_post_parameters
 
 from jezgra.models import Grob, Plocica
 
@@ -12,7 +13,7 @@ from .kolacici import dodijeli_pristup, ima_pristup
 # Grob posjetitelju postoji samo ako je njegova pločica aktivirana.
 AKTIVIRANI_GROBOVI = Grob.objects.filter(
     plocica__status=Plocica.Status.AKTIVIRANA
-).select_related("partner")
+).select_related("partner", "plocica")
 
 
 def na_kanonsku_adresu(request, kod, pokojnik_id=None):
@@ -32,7 +33,7 @@ def zakljucani_ekran(request, grob, kod):
     if request.method == "POST" and forma.is_valid():
         if grob.provjeri_lozinku(forma.cleaned_data["lozinka"]):
             # Post/Redirect/Get: nakon točne lozinke vraćamo se na istu adresu.
-            odgovor = redirect(request.path)
+            odgovor = redirect(request.get_full_path())
             dodijeli_pristup(odgovor, grob)
             return odgovor
         forma.add_error("lozinka", _("Lozinka nije točna."))
@@ -47,6 +48,8 @@ def zakljucani_ekran(request, grob, kod):
     return render(request, "javno/zakljucano.html", kontekst)
 
 
+# sensitive_post_parameters: lozinka se ne ispisuje u izvještajima o greškama.
+@sensitive_post_parameters("lozinka")
 @never_cache
 def grob(request, kod):
     """Stranica groba: popis pokojnika, ili odmah profil ako je pokojnik jedan."""
@@ -64,6 +67,7 @@ def grob(request, kod):
     return render(request, "javno/grob.html", {"grob": grob, "kod": kod, "pokojnici": pokojnici})
 
 
+@sensitive_post_parameters("lozinka")
 @never_cache
 def profil(request, kod, pokojnik_id):
     """Profil jednog pokojnika. Pokojnik se traži samo unutar groba iz adrese."""

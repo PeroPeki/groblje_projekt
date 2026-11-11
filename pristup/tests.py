@@ -298,9 +298,19 @@ class PristupTest(TestCase):
     # --- lozinka groba -------------------------------------------------------
 
     def test_lozinka_kraca_od_6_znakova_ne_moze_se_postaviti(self):
-        with self.assertRaises(ValidationError):
-            self.grob.postavi_lozinku("12345")
+        for losa in ("12345", "      ", "  12345  ", "x" * 129):
+            with self.subTest(losa=losa), self.assertRaises(ValidationError):
+                self.grob.postavi_lozinku(losa)
         self.grob.postavi_lozinku("123456")
+
+    def test_razmaci_oko_lozinke_ne_smetaju(self):
+        self.grob.postavi_lozinku("more i sol ")
+        self.grob.save()
+        self.assertRedirects(self.upisi_lozinku(" more i sol"), self.adresa_profila)
+
+    def test_kolacic_se_salje_samo_na_adrese_tog_groba(self):
+        kolacic = self.upisi_lozinku(self.LOZINKA).cookies[kolacici.naziv(self.grob)]
+        self.assertEqual(kolacic["path"], "/g/K7M4QX/")
 
     def test_lozinka_je_u_bazi_samo_kao_hash(self):
         self.grob.refresh_from_db()
