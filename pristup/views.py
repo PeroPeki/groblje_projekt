@@ -9,6 +9,8 @@ from jezgra.models import Grob, Plocica
 
 from .forms import LozinkaForm
 from .kolacici import dodijeli_pristup, ima_pristup
+from .models import NeuspjeliPokusaj
+from .ogranicenja import ip_posjetitelja, je_zakljucano, zabiljezi_neuspjeh
 
 # Grob posjetitelju postoji samo ako je njegova pločica aktivirana.
 AKTIVIRANI_GROBOVI = Grob.objects.filter(
@@ -31,11 +33,17 @@ def zakljucani_ekran(request, grob, kod):
     """
     forma = LozinkaForm(request.POST or None)
     if request.method == "POST" and forma.is_valid():
+        ip = ip_posjetitelja(request)
+        minuta = je_zakljucano(NeuspjeliPokusaj.Vrsta.LOZINKA, grob.pk, ip)
+        if minuta:
+            # Dok traje blokada, lozinka se uopće ne provjerava (ni točna ne prolazi).
+            return render(request, "greske/zakljucano.html", {"minuta": minuta}, status=429)
         if grob.provjeri_lozinku(forma.cleaned_data["lozinka"]):
             # Post/Redirect/Get: nakon točne lozinke vraćamo se na istu adresu.
             odgovor = redirect(request.get_full_path())
             dodijeli_pristup(odgovor, grob)
             return odgovor
+        zabiljezi_neuspjeh(NeuspjeliPokusaj.Vrsta.LOZINKA, grob.pk, ip)
         forma.add_error("lozinka", _("Lozinka nije točna."))
 
     kontekst = {

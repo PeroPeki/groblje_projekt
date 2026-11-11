@@ -1,17 +1,22 @@
 """Testovi javnog pristupa grobu: ruta /g/<kod>/, lozinka, pamćenje uređaja."""
 
+import io
 import re
 from datetime import date
+from datetime import timedelta
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError
+from django.core.management import call_command
+from django.db import models
 from django.http import HttpResponse
 from django.test import TestCase, override_settings
+from django.utils import timezone
 
 from jezgra.models import Grob, Partner, Plocica, Pokojnik, SerijaPlocica
 from korisnici.models import Korisnik
 from pristup import kolacici
-from pristup.models import ObiteljskiLink
+from pristup.models import NeuspjeliPokusaj, ObiteljskiLink
 
 
 def napravi_plocicu(serija, kod):
@@ -316,3 +321,158 @@ class PristupTest(TestCase):
         self.grob.refresh_from_db()
         self.assertNotIn(self.LOZINKA, self.grob.lozinka_hash)
         self.assertTrue(self.grob.provjeri_lozinku(self.LOZINKA))
+
+
+class ZakljucavanjeTest(TestCase):
+    """Blokada nakon više pogrešnih lozinki (odluka 5, P-13)."""
+
+    LOZINKA = "tajna-lozinka"
+
+    @classmethod
+    def setUpTestData(cls):
+        partner = Partner.objects.create(naziv="Gradsko groblje Primjerovo")
+        serija = SerijaPlocica.objects.create(partner=partner, oznaka="TEST-P13", broj_komada=2)
+        vlasnik = Korisnik.objects.create(username="vlasnik", email="vlasnik@example.com")
+        cls.grob = napravi_grob(serija, "K7M4QX", "Obitelj Probić", vlasnik, lozinka=cls.LOZINKA)
+        Pokojnik.objects.create(grob=cls.grob, ime="Ana", prezime="Probić")
+        Pokojnik.objects.create(grob=cls.grob, ime="Ivo", prezime="Probić")
+        cls.drugi_grob = napravi_grob(serija, "AB2CD3", "Obitelj Primjerić", vlasnik, lozinka=cls.LOZINKA)
+
+    def upisi(self, lozinka, ip="203.0.113.5", adresa="/g/K7M4QX/", **zaglavlja):
+        return self.client.post(adresa, {"lozinka": lozinka}, REMOTE_ADDR=ip, **zaglavlja)
+
+    def pogrijesi(self, puta, **kwargs):
+        for _ in range(puta):
+            odgovor = self.upisi("kriva-lozinka", **kwargs)
+        return odgovor
+
+    def pomakni_pokusaje_u_proslost(self, minuta):
+        NeuspjeliPokusaj.objects.update(vrijeme=timezone.now() - timedelta(minutes=minuta))
+
+    def assertZakljucano(self, odgovor):
+        self.assertEqual(odgovor.status_code, 429)
+        self.assertTemplateUsed(odgovor, "greske/zakljucano.html")
+
+    def test_peti_pogresan_pokusaj_jos_prikazuje_obicnu_poruku(self):
+        odgovor = self.pogrijesi(5)
+        self.assertContains(odgovor, "Lozinka nije točna.")
+
+    def test_sesti_pokusaj_je_blokiran_cak_i_s_tocnom_lozinkom(self):
+        self.pogrijesi(5)
+        odgovor = self.upisi(self.LOZINKA)
+        self.assertZakljucano(odgovor)
+        self.assertContains(odgovor, "15 minuta", status_code=429)
+        self.assertNotIn(kolacici.naziv(self.grob), odgovor.cookies)
+
+    def test_poruka_o_blokadi_ne_otkriva_nista_o_grobu(self):
+        self.pogrijesi(5)
+        odgovor = self.upisi("kriva-lozinka")
+        for tajno in ("Probić", "Primjerovo", "Ana"):
+            self.assertNotContains(odgovor, tajno, status_code=429)
+
+    def test_blokirani_pokusaji_se_ne_biljeze_pa_blokada_ne_traje_vjecno(self):
+        self.pogrijesi(9)
+        self.assertEqual(NeuspjeliPokusaj.objects.count(), 5)
+
+    def test_nakon_15_minuta_prijava_opet_radi(self):
+        self.pogrijesi(5)
+        self.pomakni_pokusaje_u_proslost(minuta=16)
+        self.assertRedirects(self.upisi(self.LOZINKA), "/g/K7M4QX/", fetch_redirect_response=False)
+
+    def test_blokada_vrijedi_samo_za_tu_ip_adresu_i_taj_grob(self):
+        self.pogrijesi(5)
+        druga_adresa = self.upisi(self.LOZINKA, ip="198.51.100.7")
+        self.assertRedirects(druga_adresa, "/g/K7M4QX/", fetch_redirect_response=False)
+        drugi_grob = self.upisi(self.LOZINKA, adresa="/g/AB2CD3/")
+        self.assertRedirects(drugi_grob, "/g/AB2CD3/", fetch_redirect_response=False)
+
+    def test_uspjesna_prijava_ne_brise_neuspjehe_drugih_adresa(self):
+        self.pogrijesi(5)
+        self.upisi(self.LOZINKA, ip="198.51.100.7")
+        self.client.cookies.clear()  # prva adresa je drugi uređaj, bez kolačića pristupa
+        self.assertEqual(NeuspjeliPokusaj.objects.count(), 5)
+        self.assertZakljucano(self.upisi(self.LOZINKA))
+
+    def test_30_pokusaja_s_raznih_adresa_blokira_grob_na_sat_vremena(self):
+        for i in range(30):
+            self.upisi("kriva-lozinka", ip=f"198.51.100.{i}")
+        odgovor = self.upisi(self.LOZINKA, ip="192.0.2.99")
+        self.assertZakljucano(odgovor)
+        self.assertContains(odgovor, "60 minuta", status_code=429)
+
+        self.pomakni_pokusaje_u_proslost(minuta=61)
+        odgovor = self.upisi(self.LOZINKA, ip="192.0.2.99")
+        self.assertRedirects(odgovor, "/g/K7M4QX/", fetch_redirect_response=False)
+
+    def test_prazna_lozinka_se_ne_broji_kao_pokusaj(self):
+        for _ in range(6):
+            self.upisi("")
+        self.assertEqual(NeuspjeliPokusaj.objects.count(), 0)
+
+    # --- IP adresa -----------------------------------------------------------
+
+    def test_lokalno_se_x_forwarded_for_ne_gleda(self):
+        # Napadač mijenja zaglavlje pri svakom pokušaju, ali ga lokalno ne gledamo.
+        for i in range(5):
+            self.upisi("kriva-lozinka", HTTP_X_FORWARDED_FOR=f"198.51.100.{i}")
+        self.assertZakljucano(self.upisi(self.LOZINKA, HTTP_X_FORWARDED_FOR="198.51.100.200"))
+
+    @override_settings(IZA_PROXYJA=True)
+    def test_iza_proxyja_se_broji_adresa_koju_je_dopisao_proxy(self):
+        # Svi zahtjevi dolaze s adrese proxyja (REMOTE_ADDR), a posjetitelji su različiti.
+        self.pogrijesi(5, ip="10.0.0.1", HTTP_X_FORWARDED_FOR="203.0.113.5")
+        isti = self.upisi(self.LOZINKA, ip="10.0.0.1", HTTP_X_FORWARDED_FOR="203.0.113.5")
+        self.assertZakljucano(isti)
+        drugi = self.upisi(self.LOZINKA, ip="10.0.0.1", HTTP_X_FORWARDED_FOR="198.51.100.7")
+        self.assertRedirects(drugi, "/g/K7M4QX/", fetch_redirect_response=False)
+
+    @override_settings(IZA_PROXYJA=True)
+    def test_lazni_pocetak_zaglavlja_ne_zaobilazi_ogranicenje(self):
+        # Napadač sam šalje X-Forwarded-For; proxy njegovu pravu adresu dopisuje na kraj.
+        for i in range(5):
+            self.upisi("kriva-lozinka", ip="10.0.0.1", HTTP_X_FORWARDED_FOR=f"1.2.3.{i}, 203.0.113.5")
+        odgovor = self.upisi(self.LOZINKA, ip="10.0.0.1", HTTP_X_FORWARDED_FOR="1.2.3.99, 203.0.113.5")
+        self.assertZakljucano(odgovor)
+
+    @override_settings(IZA_PROXYJA=True, PROXY_BROJ_POSREDNIKA=2)
+    def test_dva_posrednika_uzimaju_predzadnju_adresu(self):
+        self.upisi("kriva-lozinka", ip="10.0.0.1", HTTP_X_FORWARDED_FOR="1.2.3.4, 203.0.113.5, 10.0.0.9")
+        self.assertEqual(NeuspjeliPokusaj.objects.get().ip, "203.0.113.5")
+
+    @override_settings(IZA_PROXYJA=True)
+    def test_neispravno_zaglavlje_ne_rusi_stranicu(self):
+        odgovor = self.upisi("kriva-lozinka", HTTP_X_FORWARDED_FOR="<script>, nije-adresa")
+        self.assertEqual(odgovor.status_code, 200)
+        self.assertEqual(NeuspjeliPokusaj.objects.get().ip, "203.0.113.5")
+
+    def test_ipv6_se_broji_po_bloku_a_ipv4_u_ipv6_zapisu_kao_ipv4(self):
+        self.upisi("kriva-lozinka", ip="2001:db8:1:2:aaaa:bbbb:cccc:dddd")
+        self.upisi("kriva-lozinka", ip="::ffff:203.0.113.5")
+        self.assertEqual(
+            sorted(NeuspjeliPokusaj.objects.values_list("ip", flat=True)),
+            ["2001:db8:1:2::", "203.0.113.5"],
+        )
+
+    def test_blokada_traje_15_minuta_od_zadnjeg_pogresnog_pokusaja(self):
+        # Četiri stara neuspjeha i peti maloprije: blokada tek počinje.
+        self.pogrijesi(4)
+        self.pomakni_pokusaje_u_proslost(minuta=14)
+        self.pogrijesi(1)
+        self.assertContains(self.upisi(self.LOZINKA), "15 minuta", status_code=429)
+
+        # Deset minuta kasnije i dalje je blokirano, a poruka kaže koliko je ostalo.
+        NeuspjeliPokusaj.objects.update(vrijeme=models.F("vrijeme") - timedelta(minutes=10))
+        self.assertContains(self.upisi(self.LOZINKA), "5 minuta", status_code=429)
+
+    # --- čišćenje ------------------------------------------------------------
+
+    def test_ocisti_pokusaje_brise_samo_starije_od_24_sata(self):
+        self.pogrijesi(2)
+        stari = NeuspjeliPokusaj.objects.first()
+        NeuspjeliPokusaj.objects.filter(pk=stari.pk).update(
+            vrijeme=timezone.now() - timedelta(hours=25)
+        )
+        izlaz = io.StringIO()
+        call_command("ocisti_pokusaje", stdout=izlaz)
+        self.assertIn("Obrisano neuspjelih pokušaja: 1", izlaz.getvalue())
+        self.assertEqual(NeuspjeliPokusaj.objects.count(), 1)
