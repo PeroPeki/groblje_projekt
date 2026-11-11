@@ -75,6 +75,27 @@ class PrijavaLinkomTest(TestCase):
         self.zatrazi("iva@example.com")
         self.assertEqual(mail.outbox[-1].to, ["iva@example.com"])
 
+    def test_s_jedne_ip_adrese_najvise_10_zahtjeva_na_razne_adrese(self):
+        for i in range(10):
+            Korisnik.objects.create(username=f"k{i}", email=f"k{i}@example.com")
+            self.zatrazi(f"k{i}@example.com")
+        self.assertEqual(len(mail.outbox), 10)
+        self.zatrazi("ana@example.com")
+        self.assertEqual(len(mail.outbox), 10)
+
+    def test_administrator_ne_dobiva_link_i_ne_moze_se_prijaviti_linkom(self):
+        admin = Korisnik.objects.create(
+            username="admin", email="admin@example.com", is_staff=True, is_superuser=True
+        )
+        self.zatrazi("admin@example.com")
+        self.assertEqual(mail.outbox, [])
+
+        from sesame.utils import get_token
+
+        odgovor = self.client.post("/vlasnik/potvrda/", {"sesame": get_token(admin)})
+        self.assertContains(odgovor, "Ovaj link više ne vrijedi")
+        self.assertFalse(self.prijavljen())
+
     def test_u_evidenciji_nema_e_mail_adrese(self):
         self.zatrazi()
         self.assertNotIn("ana", NeuspjeliPokusaj.objects.get().cilj)

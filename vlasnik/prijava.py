@@ -1,12 +1,13 @@
 """Prijava bez lozinke: jednokratni link poslan e-mailom (odluka 3, django-sesame)."""
 
-import hashlib
 import logging
 
 from django.conf import settings
+from django.contrib.auth import login
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.urls import reverse
+from django.utils.crypto import salted_hmac
 from django.utils.translation import gettext as _
 from sesame.utils import get_query_string
 
@@ -18,8 +19,15 @@ log = logging.getLogger(__name__)
 
 
 def _cilj(email: str) -> str:
-    # U evidenciju ne spremamo e-mail adrese (ni onih koji nisu korisnici), nego otisak.
-    return hashlib.sha256(email.encode()).hexdigest()[:50]
+    # U evidenciju ne spremamo e-mail adrese (ni onih koji nisu korisnici), nego otisak
+    # s ključem (SECRET_KEY), koji se ne može pogoditi isprobavanjem popisa adresa.
+    return salted_hmac("link-za-prijavu", email).hexdigest()[:50]
+
+
+def prijavi(request, korisnik, backend=None) -> None:
+    """login() uz trajanje prijave za vlasnički dio (30 dana)."""
+    login(request, korisnik, backend=backend)
+    request.session.set_expiry(settings.VLASNIK_PRIJAVA_SEKUNDI)
 
 
 def link_za_prijavu(request, korisnik) -> str:
@@ -38,7 +46,13 @@ def zatrazi_link_za_prijavu(request, email: str) -> None:
         return
     zabiljezi_neuspjeh(vrsta, _cilj(email), ip)  # ovdje bilježi poslani link, ne neuspjeh
 
-    korisnik = Korisnik.objects.filter(email__iexact=email, is_active=True).first()
+    # Administratori se prijavljuju lozinkom u /admin/. Link im se ne šalje, da
+    # pristup poštanskom sandučiću ne bude dovoljan za ulaz u administraciju.
+    korisnik = (
+        Korisnik.objects.filter(email__iexact=email, is_active=True, is_staff=False, is_superuser=False)
+        .order_by("pk")
+        .first()
+    )
     if korisnik is None:
         return
     poruka = render_to_string(

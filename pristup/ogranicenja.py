@@ -73,16 +73,22 @@ def _preostalo_minuta(pokusaji, granica, sada) -> int:
 def je_zakljucano(vrsta: str, cilj, ip: str) -> int:
     """Vraća 0 ako pokušaj smije proći, inače koliko još minuta traje blokada.
 
-    Dvije granice: po IP adresi za isti cilj (npr. 5 u 15 minuta) i po cilju
-    s bilo koje adrese (npr. 30 u sat vremena).
+    Granice: po IP adresi za isti cilj (npr. 5 u 15 minuta), po cilju s bilo
+    koje adrese (npr. 30 u sat vremena) i, ako je zadana, po IP adresi za sve
+    ciljeve zajedno ("po_ip_ukupno").
     """
     granice = settings.OGRANICENJA_POKUSAJA[vrsta]
     sada = timezone.now()
     pokusaji = NeuspjeliPokusaj.objects.filter(vrsta=vrsta, cilj=str(cilj))
-    return max(
+    preostalo = [
         _preostalo_minuta(pokusaji, granice["po_cilju"], sada),
         _preostalo_minuta(pokusaji.filter(ip=ip), granice["po_ip"], sada),
-    )
+    ]
+    if "po_ip_ukupno" in granice:
+        # Ista IP adresa bez obzira na cilj (npr. linkovi za prijavu na razne e-mailove).
+        s_adrese = NeuspjeliPokusaj.objects.filter(vrsta=vrsta, ip=ip)
+        preostalo.append(_preostalo_minuta(s_adrese, granice["po_ip_ukupno"], sada))
+    return max(preostalo)
 
 
 def zabiljezi_neuspjeh(vrsta: str, cilj, ip: str) -> None:

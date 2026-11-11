@@ -151,7 +151,8 @@ OGRANICENJA_POKUSAJA = {
         "po_cilju": (30, 60),  # isti grob, s bilo koje adrese
     },
     # Linkovi za prijavu: najviše 3 za isti e-mail u 15 minuta (P-17).
-    "prijava": {"po_ip": (3, 15), "po_cilju": (3, 15)},
+    # S jedne IP adrese najviše 10 zahtjeva u 15 minuta, na koje god adrese.
+    "prijava": {"po_ip": (3, 15), "po_cilju": (3, 15), "po_ip_ukupno": (10, 15)},
 }
 
 # Na hostingu je aplikacija iza posrednika (proxyja), pa se IP adresa posjetitelja
@@ -178,7 +179,8 @@ SESAME_MAX_AGE = 15 * 60  # link vrijedi 15 minuta
 SESAME_ONE_TIME = True  # i samo jednom
 SESAME_TOKENS = ["sesame.tokens_v2"]
 LOGIN_URL = "vlasnik:prijava"
-SESSION_COOKIE_AGE = 30 * 24 * 3600  # prijava traje 30 dana
+# Prijava linkom traje 30 dana. Prijava u admin lozinkom ostaje na Djangovih 14 dana.
+VLASNIK_PRIJAVA_SEKUNDI = 30 * 24 * 3600
 
 
 # E-mail. Bez EMAIL_HOST u .env poruke se samo ispisuju u terminal (lokalni razvoj),

@@ -1,6 +1,6 @@
 """Vlasnički dio: prijava linkom na e-mail i popis grobova."""
 
-from django.contrib.auth import login, logout
+from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 from django.views.decorators.cache import never_cache
@@ -9,7 +9,7 @@ from django.views.decorators.http import require_POST
 from sesame.utils import get_user
 
 from .forms import PrijavaForm
-from .prijava import zatrazi_link_za_prijavu
+from .prijava import prijavi, zatrazi_link_za_prijavu
 
 TOKEN = "sesame"  # naziv parametra u linku i skrivenog polja u formi (SESAME_TOKEN_NAME)
 
@@ -40,9 +40,9 @@ def potvrda(request):
     """
     if request.method == "POST":
         korisnik = get_user(request.POST.get(TOKEN, ""), update_last_login=False)
-        if korisnik is None:
+        if korisnik is None or korisnik.is_staff or korisnik.is_superuser:
             return render(request, "vlasnik/potvrda.html", {"link_ne_vrijedi": True})
-        login(request, korisnik)  # login() mijenja last_login, pa token više ne vrijedi
+        prijavi(request, korisnik)  # login() mijenja last_login, pa token više ne vrijedi
         return redirect("vlasnik:popis")
 
     token = request.GET.get(TOKEN)
