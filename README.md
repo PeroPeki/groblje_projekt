@@ -98,7 +98,8 @@ Na Windowsu vatrozid može pitati za dopuštenje: dopusti pristup za privatne mr
 |---|---|
 | `config/` | postavke projekta (`settings.py`) i glavni URL-ovi (`urls.py`) |
 | `korisnici/` | vlastiti model korisnika `Korisnik` |
-| `jezgra/` | zajednički pogledi (zasad probna početna stranica) |
+| `jezgra/` | glavni modeli (partner, pločica, grob, pokojnik), admin i probna početna stranica |
+| `pristup/` | javne adrese groba: `/g/<KOD>/` (stranica groba) i profil pokojnika |
 | `templates/` | svi HTML predlošci (`base.html` je okvir za sve stranice) |
 | `static/` | CSS, JavaScript, slike i fontovi koji se poslužuju pregledniku |
 | `tailwind/ulaz.css` | izvorni Tailwind CSS i tema (boje, fontovi) |

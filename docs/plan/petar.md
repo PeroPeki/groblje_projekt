@@ -643,7 +643,7 @@ Svi pojmovi iz rječnika postoje kao modeli, u adminu se stvaraju serije pločic
 Skeniranje koda vodi na zaključani ekran, a točna lozinka na profil. Pristup je pokriven testovima.
 
 ### P-11 Ruta `/g/<kod>` i stranica groba
-- [ ] Gotovo
+- [x] Gotovo
 
 **Cilj:** otvaranje `/g/K7M4QX` (ili `/G/K7M4QX`, `/g/k7m4qx`) za aktiviran grob vodi na stranicu groba s popisom pokojnika, ili odmah na profil ako je pokojnik samo jedan. Neaktivirana i nepostojeća pločica daju isti ekran „Unesi aktivacijski kod”.
 

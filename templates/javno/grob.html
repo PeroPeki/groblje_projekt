@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% load i18n %}
+{# Varijable: grob (Grob), kod (str), pokojnici (lista Pokojnik; 0, 2 ili više) #}
+{# Grob s točno jednim pokojnikom ne dolazi ovamo: pogled odmah otvara profil. #}
+{# grob.oznaka_grobnog_mjesta se NIKAD ne prikazuje posjetiteljima. #}
+
+{% block naslov %}{{ grob.naziv }}{% endblock %}
+
+{% block sadrzaj %}
+<div class="p-6 space-y-4 text-lg">
+  <h1 class="text-2xl font-semibold">{{ grob.naziv }}</h1>
+  {% if pokojnici %}
+    <ul class="space-y-3">
+      {% for pokojnik in pokojnici %}
+        <li>
+          <a class="block rounded-lg border p-4 underline" href="{% url 'pristup:profil' kod=kod pokojnik_id=pokojnik.pk %}">
+            {{ pokojnik.ime }} {{ pokojnik.prezime }}
+            {% if pokojnik.datum_rodjenja or pokojnik.datum_smrti %}
+              <span class="block text-base">
+                {{ pokojnik.datum_rodjenja|date:"Y."|default:"?" }} – {{ pokojnik.datum_smrti|date:"Y."|default:"?" }}
+              </span>
+            {% endif %}
+          </a>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>{% translate "Obitelj još nije dodala nijedan profil." %}</p>
+  {% endif %}
+</div>
+{% endblock %}

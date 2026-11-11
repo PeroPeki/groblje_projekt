@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% load i18n %}
+{# Varijable: kod (str, 6 znakova s pločice) #}
+{# Isti ekran za nepostojeću i neaktiviranu pločicu: ne smije prikazati ništa drugo o pločici. #}
+{# Forma za aktivacijski kod dolazi u P-18. #}
+
+{% block naslov %}{% translate "Aktivacija pločice" %}{% endblock %}
+
+{% block sadrzaj %}
+<div class="p-6 space-y-4 text-lg">
+  <h1 class="text-2xl font-semibold">{% translate "Ova pločica još nije aktivirana" %}</h1>
+  <p>{% translate "Kod pločice:" %} <strong>{{ kod }}</strong></p>
+  <p>{% translate "Za aktivaciju vam treba aktivacijski kod koji ste dobili na papiru uz pločicu." %}</p>
+</div>
+{% endblock %}
