@@ -749,7 +749,7 @@ Skeniranje koda vodi na zaključani ekran, a točna lozinka na profil. Pristup j
 - Prikaz različitih poruka za „grob ne postoji” i „lozinka nije točna”: to otkriva informacije napadaču.
 
 ### P-13 Zaključavanje nakon više pogrešnih pokušaja
-- [ ] Gotovo
+- [x] Gotovo
 
 **Cilj:** nakon 5 pogrešnih lozinki za isti grob s iste IP adrese u 15 minuta daljnji pokušaji su blokirani 15 minuta. Nakon 30 pogrešnih pokušaja za isti grob u sat vremena (s bilo koje adrese) blokira se grob na sat vremena.
 

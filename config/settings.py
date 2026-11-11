@@ -131,6 +131,19 @@ MEDIJI_MAX_SLIKA_BAJTOVA = 30 * 1024**2  # tehnička odluka: dovoljno za HEIC/JP
 MEDIJI_MAX_STRANICA_SLIKE_PX = 2048
 
 
+# Ograničenje pogrešnih pokušaja (odluka 5, pristup/ogranicenja.py).
+# vrsta: (najviše po IP adresi za isti cilj, prozor u minutama,
+#         najviše po cilju s bilo koje adrese, prozor u minutama)
+
+OGRANICENJA_POKUSAJA = {
+    "lozinka": (5, 15, 30, 60),
+}
+
+# Na hostingu je aplikacija iza posrednika (proxyja), pa se IP adresa posjetitelja
+# čita iz zaglavlja X-Forwarded-For. Lokalno mora ostati False.
+IZA_PROXYJA = env.bool("IZA_PROXYJA", default=False)
+
+
 # QR kodovi: početak linka na pločici, VELIKIM slovima (odluka 18).
 # Lokalno IP adresa računala u kućnoj mreži, da mobitel može otvoriti kod.
 

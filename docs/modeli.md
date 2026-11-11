@@ -86,7 +86,10 @@ erDiagram
 
 Model `NeuspjeliPokusaj` (aplikacija `pristup`) nije vezan stranim ključem: bilježi
 vrstu (lozinka ili aktivacija), cilj (ID groba ili kod pločice) i IP adresu, za
-zaključavanje nakon više pogrešnih pokušaja (P-13).
+zaključavanje nakon više pogrešnih pokušaja (P-13). Granice su u postavci
+`OGRANICENJA_POKUSAJA`: za lozinku groba 5 pogrešnih s iste IP adrese u 15 minuta
+ili 30 s bilo koje adrese u sat vremena. Dok blokada traje, lozinka se uopće ne
+provjerava. Zapise starije od 24 sata briše naredba `ocisti_pokusaje`.
 
 ## Ključne odluke
 
