@@ -8,12 +8,13 @@ from decimal import Decimal
 
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.db import models
 from django.http import HttpResponse
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
-from jezgra.models import Grob, Partner, Plocica, Pokojnik, SerijaPlocica
+from jezgra.models import Grob, Partner, Plocica, Pokojnik, SerijaPlocica, Srodnik
 from korisnici.models import Korisnik
 from pristup import kolacici
 from pristup.models import NeuspjeliPokusaj, ObiteljskiLink
@@ -476,3 +477,144 @@ class ZakljucavanjeTest(TestCase):
         call_command("ocisti_pokusaje", stdout=izlaz)
         self.assertIn("Obrisano neuspjelih pokušaja: 1", izlaz.getvalue())
         self.assertEqual(NeuspjeliPokusaj.objects.count(), 1)
+
+
+class ProfilTest(TestCase):
+    """Sadržaj profila i odjeljak „Obitelj” (odluka 3a, P-14)."""
+
+    @classmethod
+    def setUpTestData(cls):
+        partner = Partner.objects.create(naziv="Gradsko groblje Primjerovo")
+        serija = SerijaPlocica.objects.create(partner=partner, oznaka="TEST-P14", broj_komada=2)
+        vlasnik = Korisnik.objects.create(username="vlasnik", email="vlasnik@example.com")
+        grob = napravi_grob(serija, "K7M4QX", "Obitelj Probić", vlasnik, javni_prikaz=True)
+        drugi_grob = napravi_grob(serija, "AB2CD3", "Obitelj Primjerić", vlasnik, javni_prikaz=True)
+
+        cls.marija = Pokojnik.objects.create(
+            grob=grob,
+            ime="Marija",
+            prezime="Probić",
+            datum_rodjenja=date(1934, 3, 12),
+            datum_smrti=date(2019, 11, 5),
+            biografija="Prvi odlomak.\n\nDrugi <b>odlomak</b>.",
+        )
+        cls.josip = Pokojnik.objects.create(grob=grob, ime="Josip", prezime="Probić")
+        cls.ivan = Pokojnik.objects.create(grob=drugi_grob, ime="Ivan", prezime="Primjerić")
+
+        V = Srodnik.VrstaSrodstva
+        Srodnik.objects.create(pokojnik=cls.marija, vrsta_srodstva=V.SUPRUG, povezani_pokojnik=cls.josip)
+        Srodnik.objects.create(pokojnik=cls.marija, vrsta_srodstva=V.BRAT, povezani_pokojnik=cls.ivan)
+        Srodnik.objects.create(
+            pokojnik=cls.marija, vrsta_srodstva=V.UNUKA, ime_i_prezime="Ana Pristala", pristanak_na_prikaz=True
+        )
+        Srodnik.objects.create(
+            pokojnik=cls.marija, vrsta_srodstva=V.SIN, ime_i_prezime="Marko Nepristao", pristanak_na_prikaz=False
+        )
+
+    def profil(self, pokojnik, kod="K7M4QX"):
+        return self.client.get(f"/g/{kod}/{pokojnik.pk}/")
+
+    def test_profil_prikazuje_ime_datume_i_biografiju(self):
+        odgovor = self.profil(self.marija)
+        self.assertContains(odgovor, "Marija Probić")
+        self.assertContains(odgovor, "12. ožujka 1934. – 5. studenoga 2019.")
+        self.assertContains(odgovor, "<p>Prvi odlomak.</p>", html=True)
+
+    def test_biografija_se_escapira(self):
+        odgovor = self.profil(self.marija)
+        self.assertContains(odgovor, "&lt;b&gt;odlomak&lt;/b&gt;")
+        self.assertNotContains(odgovor, "<b>odlomak</b>")
+
+    def test_povezani_pokojnik_je_link_na_njegov_profil(self):
+        odgovor = self.profil(self.marija)
+        self.assertContains(odgovor, f'href="/g/K7M4QX/{self.josip.pk}/"')
+        self.assertContains(odgovor, "suprug")
+
+    def test_srodnik_u_drugom_grobu_vodi_na_profil_u_tom_grobu(self):
+        self.assertContains(self.profil(self.marija), f'href="/g/AB2CD3/{self.ivan.pk}/"')
+
+    def test_srodnik_iz_groba_s_neaktiviranom_plocicom_se_ne_prikazuje(self):
+        Plocica.objects.filter(kod="AB2CD3").update(status=Plocica.Status.NEAKTIVIRANA)
+        odgovor = self.profil(self.marija)
+        self.assertNotContains(odgovor, "Ivan Primjerić")
+        self.assertNotContains(odgovor, "/g/AB2CD3/")
+
+    def test_zivuci_srodnik_s_pristankom_prikazuje_samo_ime_i_srodstvo(self):
+        odgovor = self.profil(self.marija)
+        self.assertContains(odgovor, "Ana Pristala")
+        self.assertContains(odgovor, "unuka")
+        zivuca = [s for s in odgovor.context["srodnici"] if s["ime"] == "Ana Pristala"][0]
+        self.assertEqual(set(zivuca), {"srodstvo", "ime", "url"})
+        self.assertIsNone(zivuca["url"])
+
+    def test_zivuci_srodnik_bez_pristanka_nije_ni_u_html_u_ni_u_kontekstu(self):
+        odgovor = self.profil(self.marija)
+        self.assertNotContains(odgovor, "Marko")
+        self.assertNotContains(odgovor, "Nepristao")
+        self.assertNotIn("Marko Nepristao", str(odgovor.context["srodnici"]))
+
+    def test_profil_bez_biografije_datuma_i_srodnika_nema_zivotopisa_ni_obitelji(self):
+        odgovor = self.profil(self.josip)
+        self.assertContains(odgovor, "Josip Probić")
+        for nema in ("None", "Životopis", "Obitelj</h2>", "? – ?"):
+            self.assertNotContains(odgovor, nema)
+
+    def test_profil_ima_stalan_broj_upita(self):
+        with self.assertNumQueries(4):  # grob, pokojnik, srodnici (s povezanima), broj pokojnika
+            self.profil(self.marija)
+
+
+class ProbniGrobTest(TestCase):
+    """Naredba napravi_probni_grob (P-14)."""
+
+    def pokreni(self):
+        izlaz = io.StringIO()
+        call_command("napravi_probni_grob", stdout=izlaz)
+        return izlaz.getvalue()
+
+    @override_settings(DEBUG=True)
+    def test_stvara_grob_koji_se_otvara_lozinkom_demo123(self):
+        izlaz = self.pokreni()
+        self.assertIn("demo123", izlaz)
+        self.assertIn("/g/PRB234/", izlaz)
+
+        self.assertTemplateUsed(self.client.get("/g/PRB234/"), "javno/zakljucano.html")
+        self.client.post("/g/PRB234/", {"lozinka": "demo123"})
+        odgovor = self.client.get("/g/PRB234/")
+        self.assertContains(odgovor, "Marija Probić")
+        self.assertContains(odgovor, "Josip Probić")
+
+        marija = Pokojnik.objects.get(ime="Marija", grob__plocica__kod="PRB234")
+        profil = self.client.get(f"/g/PRB234/{marija.pk}/")
+        self.assertContains(profil, "Ana Probić")  # živuća osoba s pristankom
+        self.assertNotContains(profil, "Marko")  # živuća osoba bez pristanka
+
+    @override_settings(DEBUG=True)
+    def test_ponovno_pokretanje_ne_stvara_duplikate(self):
+        self.pokreni()
+        izlaz = self.pokreni()
+        self.assertIn("već postoje", izlaz)
+        self.assertEqual(Grob.objects.count(), 2)
+        self.assertEqual(Pokojnik.objects.count(), 3)
+
+    @override_settings(DEBUG=True)
+    def test_ponovno_vraca_obrisane_pokojnike_i_ne_dira_tudje_grobove(self):
+        self.pokreni()
+        tudji = napravi_grob(
+            SerijaPlocica.objects.get(oznaka="PROBA-01"),
+            "TDJ234",
+            "Tuđi grob",
+            Korisnik.objects.create(username="netko", email="netko@example.com"),
+        )
+        Pokojnik.objects.filter(grob__plocica__kod="PRB234").delete()
+
+        izlaz = io.StringIO()
+        call_command("napravi_probni_grob", "--ponovno", stdout=izlaz)
+        self.assertEqual(Pokojnik.objects.filter(grob__plocica__kod="PRB234").count(), 2)
+        self.assertEqual(Grob.objects.count(), 3)
+        self.assertTrue(Grob.objects.filter(pk=tudji.pk).exists())
+
+    def test_ne_radi_uz_debug_false(self):
+        with self.assertRaises(CommandError):
+            self.pokreni()
+        self.assertEqual(Grob.objects.count(), 0)

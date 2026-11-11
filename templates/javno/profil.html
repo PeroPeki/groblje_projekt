@@ -1,22 +1,69 @@
 {% extends "base.html" %}
 {% load i18n %}
-{# Varijable: grob (Grob), kod (str), pokojnik (Pokojnik), ima_popis_pokojnika (bool) #}
-{# Odjeljak „Obitelj”, galerija, video i knjiga sjećanja dolaze u P-14, P-31 i P-33. #}
+{# Varijable:                                                                        #}
+{#   grob (Grob), kod (str), pokojnik (Pokojnik), ima_popis_pokojnika (bool),        #}
+{#   srodnici (lista rječnika: srodstvo (str), ime (str), url (str ili None))        #}
+{# srodnici su već filtrirani u pogledu (živuće osobe samo uz pristanak): ne dodaji  #}
+{# druge izvore podataka o obitelji. grob.oznaka_grobnog_mjesta se NIKAD ne prikazuje. #}
+{# Galerija i video dolaze u P-31, knjiga sjećanja u P-33.                            #}
 
 {% block naslov %}{{ pokojnik.ime }} {{ pokojnik.prezime }}{% endblock %}
 
 {% block sadrzaj %}
-<div class="p-6 space-y-4 text-lg">
+<div class="p-6 space-y-6 text-lg">
   {% if ima_popis_pokojnika %}
     <p><a class="underline" href="{% url 'pristup:grob' kod=kod %}">{{ grob.naziv }}</a></p>
   {% else %}
     <p>{{ grob.naziv }}</p>
   {% endif %}
-  <h1 class="text-2xl font-semibold">{{ pokojnik.ime }} {{ pokojnik.prezime }}</h1>
-  {% if pokojnik.datum_rodjenja or pokojnik.datum_smrti %}
-    {# "E" daje mjesec u genitivu: 5. studenoga 2020. #}
-    <p>{{ pokojnik.datum_rodjenja|date:"j. E Y."|default:"?" }} – {{ pokojnik.datum_smrti|date:"j. E Y."|default:"?" }}</p>
+
+  <header class="space-y-2">
+    <div class="h-40 w-40 rounded-lg border" aria-hidden="true">{# profilna slika: P-31 #}</div>
+    <h1 class="text-2xl font-semibold">{{ pokojnik.ime }} {{ pokojnik.prezime }}</h1>
+    {% if pokojnik.datum_rodjenja or pokojnik.datum_smrti %}
+      {# "E" daje mjesec u genitivu: 5. studenoga 2020. #}
+      <p>{{ pokojnik.datum_rodjenja|date:"j. E Y."|default:"?" }} – {{ pokojnik.datum_smrti|date:"j. E Y."|default:"?" }}</p>
+    {% endif %}
+  </header>
+
+  {% if pokojnik.biografija %}
+    <section class="space-y-2">
+      <h2 class="text-xl font-semibold">{% translate "Životopis" %}</h2>
+      {{ pokojnik.biografija|linebreaks }}
+    </section>
   {% endif %}
-  {{ pokojnik.biografija|linebreaks }}
+
+  {% if srodnici %}
+    <section class="space-y-2">
+      <h2 class="text-xl font-semibold">{% translate "Obitelj" %}</h2>
+      <ul class="space-y-2">
+        {% for srodnik in srodnici %}
+          <li>
+            {{ srodnik.srodstvo }}:
+            {% if srodnik.url %}
+              <a class="underline" href="{{ srodnik.url }}">{{ srodnik.ime }}</a>
+            {% else %}
+              {{ srodnik.ime }}
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+
+  <section>
+    <h2 class="text-xl font-semibold">{% translate "Slike" %}</h2>
+    <p>{% translate "Slike još nisu dodane." %}</p>
+  </section>
+
+  <section>
+    <h2 class="text-xl font-semibold">{% translate "Video" %}</h2>
+    <p>{% translate "Video još nije dodan." %}</p>
+  </section>
+
+  <section>
+    <h2 class="text-xl font-semibold">{% translate "Knjiga sjećanja" %}</h2>
+    <p>{% translate "Još nema poruka." %}</p>
+  </section>
 </div>
 {% endblock %}

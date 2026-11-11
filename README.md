@@ -77,7 +77,18 @@ Prvi put se preuzima Tailwind program (~80 MB), pa treba pričekati. Nakon toga 
 
 Tailwind prati predloške i sam ponovno generira CSS kad promijeniš klasu: samo osvježi stranicu.
 
-### 5. Proba na mobitelu (ista Wi-Fi mreža)
+### 5. Probni grob
+
+```
+python manage.py napravi_probni_grob
+```
+
+Stvara dva izmišljena groba s lozinkom `demo123` i ispisuje njihove adrese
+(`/g/PRB234/` s dva pokojnika i `/g/PRB345/` s jednim). Naredba radi samo uz
+`DEBUG=True`, a ponovno pokretanje ne stvara duplikate. Popis stanja koja se na
+njima mogu vidjeti je u `docs/predlosci.md`.
+
+### 6. Proba na mobitelu (ista Wi-Fi mreža)
 
 1. Saznaj IP adresu računala: macOS `ipconfig getifaddr en0`, Windows `ipconfig` (redak *IPv4 Address*).
 2. Dodaj je u `.env`: `ALLOWED_HOSTS=localhost,127.0.0.1,192.168.1.23` (s tvojom adresom).
@@ -99,7 +110,7 @@ Na Windowsu vatrozid može pitati za dopuštenje: dopusti pristup za privatne mr
 | `config/` | postavke projekta (`settings.py`) i glavni URL-ovi (`urls.py`) |
 | `korisnici/` | vlastiti model korisnika `Korisnik` |
 | `jezgra/` | glavni modeli (partner, pločica, grob, pokojnik), admin i probna početna stranica |
-| `pristup/` | javne adrese groba: `/g/<KOD>/` (stranica groba) i profil pokojnika |
+| `pristup/` | javni dio: `/g/<KOD>/`, zaključani ekran, lozinka groba, pamćenje uređaja, ograničenje pokušaja |
 | `templates/` | svi HTML predlošci (`base.html` je okvir za sve stranice) |
 | `static/` | CSS, JavaScript, slike i fontovi koji se poslužuju pregledniku |
 | `tailwind/ulaz.css` | izvorni Tailwind CSS i tema (boje, fontovi) |
