@@ -3,6 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  {# Tražilice ne smiju prikazivati nijednu stranicu, a adresa se ne šalje drugim stranicama (P-15). #}
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="referrer" content="same-origin">
   <title>{% block naslov %}Vječna spomen{% endblock %}</title>
   {% tailwind_css %}
   <script src="{% static 'vendor/htmx.min.js' %}" defer></script>

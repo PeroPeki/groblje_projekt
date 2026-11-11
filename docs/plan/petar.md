@@ -815,7 +815,7 @@ Skeniranje koda vodi na zaključani ekran, a točna lozinka na profil. Pristup j
 > 🔁 **Predaja:** Petar predaje prijatelju predloške `templates/javno/zakljucano.html`, `templates/javno/grob.html`, `templates/javno/profil.html` i `templates/aktivacija/unos_koda.html`, popis varijabli u `docs/predlosci.md` i naredbu `napravi_probni_grob`. Time mogu krenuti **D-17** i **D-18**.
 
 ### P-15 Zaštita od indeksiranja i sigurnosna zaglavlja
-- [ ] Gotovo
+- [x] Gotovo
 
 **Cilj:** svi odgovori aplikacije imaju zaglavlje `X-Robots-Tag: noindex, nofollow`, svaki predložak ima `<meta name="robots" content="noindex, nofollow">`, postoji `/robots.txt`, a uključena su osnovna sigurnosna zaglavlja.
 

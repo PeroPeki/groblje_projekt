@@ -8,6 +8,7 @@ from jezgra import views as jezgra
 urlpatterns = [
     path("", jezgra.pocetna, name="pocetna"),
     path("htmx-proba/", jezgra.htmx_proba, name="htmx_proba"),
+    path("robots.txt", jezgra.robots_txt, name="robots_txt"),
     path("admin/", admin.site.urls),
     path("", include("pristup.urls")),
 ]
