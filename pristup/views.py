@@ -1,6 +1,7 @@
 """Javni pogledi: što posjetitelj vidi kad skenira QR kod na grobu."""
 
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils.translation import gettext as _
 from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_post_parameters
@@ -75,6 +76,29 @@ def grob(request, kod):
     return render(request, "javno/grob.html", {"grob": grob, "kod": kod, "pokojnici": pokojnici})
 
 
+def srodnici_za_prikaz(pokojnik) -> list[dict]:
+    """Srodnici koje posjetitelj smije vidjeti (odluka 3a, GDPR).
+
+    Filtrira se ovdje, a ne u predlošku: živuća osoba bez pristanka uopće ne
+    dolazi do predloška, a za onu s pristankom šalju se samo ime i srodstvo.
+    """
+    srodnici = []
+    for srodnik in pokojnik.srodnici.select_related("povezani_pokojnik__grob__plocica"):
+        povezani = srodnik.povezani_pokojnik
+        if povezani is not None:
+            ime = str(povezani)
+            url = reverse(
+                "pristup:profil",
+                kwargs={"kod": povezani.grob.plocica.kod, "pokojnik_id": povezani.pk},
+            )
+        elif srodnik.pristanak_na_prikaz:
+            ime, url = srodnik.ime_i_prezime, None
+        else:
+            continue
+        srodnici.append({"srodstvo": srodnik.get_vrsta_srodstva_display(), "ime": ime, "url": url})
+    return srodnici
+
+
 @sensitive_post_parameters("lozinka")
 @never_cache
 def profil(request, kod, pokojnik_id):
@@ -90,6 +114,7 @@ def profil(request, kod, pokojnik_id):
         "grob": grob,
         "kod": kod,
         "pokojnik": pokojnik,
+        "srodnici": srodnici_za_prikaz(pokojnik),
         # Kad je pokojnik jedini, stranica groba samo vraća na ovaj profil,
         # pa link „natrag na grob” nema smisla.
         "ima_popis_pokojnika": grob.pokojnici.count() > 1,

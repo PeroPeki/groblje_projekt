@@ -780,7 +780,7 @@ Skeniranje koda vodi na zaključani ekran, a točna lozinka na profil. Pristup j
 - Na hostingu sve izgleda kao ista IP adresa (adresa proxyja), pa se zaključaju svi posjetitelji. Provjeri `IZA_PROXYJA`.
 
 ### P-14 Privremeni predlošci javnog dijela i popis varijabli
-- [ ] Gotovo
+- [x] Gotovo
 
 **Cilj:** zaključani ekran, stranica groba i profil (biografija i odjeljak „Obitelj”) prikazuju sve podatke u jednostavnim, neuređenim predlošcima, a svaka varijabla zapisana je u `docs/predlosci.md`.
 
