@@ -14,6 +14,7 @@ from korisnici.models import Korisnik
 OZNAKA_SERIJE = "PROBA-01"
 KOD_OBITELJSKOG = "PRB234"  # dva pokojnika: stranica groba prikazuje popis
 KOD_JEDNOG = "PRB345"  # jedan pokojnik: odmah se otvara profil
+KODOVI = [KOD_OBITELJSKOG, KOD_JEDNOG]
 LOZINKA = "demo123"
 EMAIL = "proba@example.com"
 
@@ -28,15 +29,26 @@ BIOGRAFIJA = (
 class Command(BaseCommand):
     help = (
         "Stvara dva izmišljena probna groba (lozinka demo123) za razvoj predložaka. "
-        "Ponovno pokretanje ne stvara duplikate."
+        "Ponovno pokretanje ne stvara duplikate, a --ponovno ih vraća na početno stanje."
     )
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--ponovno",
+            action="store_true",
+            help="Obriši probne grobove (samo one koje je stvorila ova naredba) i stvori ih iznova.",
+        )
 
     def handle(self, *args, **options):
         if not settings.DEBUG:
             raise CommandError("Probni grob ima javno poznatu lozinku, pa se stvara samo uz DEBUG=True.")
 
-        if Plocica.objects.filter(kod__in=[KOD_OBITELJSKOG, KOD_JEDNOG]).exists():
-            self.stdout.write("Probni grobovi već postoje, ništa nije promijenjeno.")
+        postoje = Plocica.objects.filter(kod__in=KODOVI).exists()
+        if postoje and not options["ponovno"]:
+            self.stdout.write(
+                "Probni grobovi već postoje, ništa nije promijenjeno. "
+                "Za povratak na početno stanje pokreni naredbu s --ponovno."
+            )
         else:
             self.stvori()
             self.stdout.write(self.style.SUCCESS("Probni grobovi su stvoreni."))
@@ -49,11 +61,17 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def stvori(self):
-        partner, _ = Partner.objects.get_or_create(naziv="Probni partner (razvoj)")
-        serija, _ = SerijaPlocica.objects.get_or_create(
-            oznaka=OZNAKA_SERIJE, defaults={"partner": partner, "broj_komada": 2}
+        # Brišu se samo pločice s probnim kodovima i njihovi grobovi, ništa drugo.
+        Grob.objects.filter(plocica__kod__in=KODOVI).delete()
+        Plocica.objects.filter(kod__in=KODOVI).delete()
+
+        serija = SerijaPlocica.objects.filter(oznaka=OZNAKA_SERIJE).first()
+        if serija is None:
+            partner = Partner.objects.create(naziv="Probni partner (razvoj)")
+            serija = SerijaPlocica.objects.create(partner=partner, oznaka=OZNAKA_SERIJE, broj_komada=2)
+        korisnik = Korisnik.objects.filter(email=EMAIL).first() or Korisnik.objects.create(
+            email=EMAIL, username=EMAIL
         )
-        korisnik, _ = Korisnik.objects.get_or_create(email=EMAIL, defaults={"username": EMAIL})
 
         obiteljski = self.stvori_grob(serija, korisnik, KOD_OBITELJSKOG, "Obitelj Probić")
         marija = Pokojnik.objects.create(

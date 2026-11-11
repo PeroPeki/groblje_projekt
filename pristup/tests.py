@@ -533,6 +533,12 @@ class ProfilTest(TestCase):
     def test_srodnik_u_drugom_grobu_vodi_na_profil_u_tom_grobu(self):
         self.assertContains(self.profil(self.marija), f'href="/g/AB2CD3/{self.ivan.pk}/"')
 
+    def test_srodnik_iz_groba_s_neaktiviranom_plocicom_se_ne_prikazuje(self):
+        Plocica.objects.filter(kod="AB2CD3").update(status=Plocica.Status.NEAKTIVIRANA)
+        odgovor = self.profil(self.marija)
+        self.assertNotContains(odgovor, "Ivan Primjerić")
+        self.assertNotContains(odgovor, "/g/AB2CD3/")
+
     def test_zivuci_srodnik_s_pristankom_prikazuje_samo_ime_i_srodstvo(self):
         odgovor = self.profil(self.marija)
         self.assertContains(odgovor, "Ana Pristala")
@@ -547,7 +553,7 @@ class ProfilTest(TestCase):
         self.assertNotContains(odgovor, "Nepristao")
         self.assertNotIn("Marko Nepristao", str(odgovor.context["srodnici"]))
 
-    def test_profil_bez_biografije_datuma_i_srodnika_nema_praznih_odjeljaka(self):
+    def test_profil_bez_biografije_datuma_i_srodnika_nema_zivotopisa_ni_obitelji(self):
         odgovor = self.profil(self.josip)
         self.assertContains(odgovor, "Josip Probić")
         for nema in ("None", "Životopis", "Obitelj</h2>", "? – ?"):
@@ -590,6 +596,23 @@ class ProbniGrobTest(TestCase):
         self.assertIn("već postoje", izlaz)
         self.assertEqual(Grob.objects.count(), 2)
         self.assertEqual(Pokojnik.objects.count(), 3)
+
+    @override_settings(DEBUG=True)
+    def test_ponovno_vraca_obrisane_pokojnike_i_ne_dira_tudje_grobove(self):
+        self.pokreni()
+        tudji = napravi_grob(
+            SerijaPlocica.objects.get(oznaka="PROBA-01"),
+            "TDJ234",
+            "Tuđi grob",
+            Korisnik.objects.create(username="netko", email="netko@example.com"),
+        )
+        Pokojnik.objects.filter(grob__plocica__kod="PRB234").delete()
+
+        izlaz = io.StringIO()
+        call_command("napravi_probni_grob", "--ponovno", stdout=izlaz)
+        self.assertEqual(Pokojnik.objects.filter(grob__plocica__kod="PRB234").count(), 2)
+        self.assertEqual(Grob.objects.count(), 3)
+        self.assertTrue(Grob.objects.filter(pk=tudji.pk).exists())
 
     def test_ne_radi_uz_debug_false(self):
         with self.assertRaises(CommandError):

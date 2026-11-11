@@ -45,6 +45,6 @@ pokretati više puta).
 | Živuća osoba s pristankom (samo ime, bez linka) | Marija → unuka Ana Probić |
 | Živuća osoba bez pristanka (ne smije se vidjeti ni u izvornom HTML-u) | Marko Probić postoji u bazi, ali ne i na stranici |
 | Neaktivirana ili nepostojeća pločica | `/g/ZZZZZ9/` |
-| Grob bez ijednog pokojnika | obriši pokojnike probnog groba u adminu |
+| Grob bez ijednog pokojnika | obriši pokojnike probnog groba u adminu, a zatim ih vrati s `python manage.py napravi_probni_grob --ponovno` |
 
 Sve osobe u probnom grobu su izmišljene.

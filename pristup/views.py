@@ -86,6 +86,8 @@ def srodnici_za_prikaz(pokojnik) -> list[dict]:
     for srodnik in pokojnik.srodnici.select_related("povezani_pokojnik__grob__plocica"):
         povezani = srodnik.povezani_pokojnik
         if povezani is not None:
+            if povezani.grob.plocica.status != Plocica.Status.AKTIVIRANA:
+                continue  # grob koji za posjetitelje ne postoji: ni ime ni link
             ime = str(povezani)
             url = reverse(
                 "pristup:profil",
