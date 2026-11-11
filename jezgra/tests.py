@@ -11,6 +11,11 @@ class NoIndexTest(TestCase):
                 odgovor = self.client.get(adresa)
                 self.assertEqual(odgovor["X-Robots-Tag"], "noindex, nofollow")
 
+    def test_zaglavlje_imaju_i_odgovori_koje_stvore_medjuslojevi(self):
+        odgovor = self.client.get("/htmx-proba")  # CommonMiddleware dodaje kosu crtu (301)
+        self.assertEqual(odgovor.status_code, 301)
+        self.assertEqual(odgovor["X-Robots-Tag"], "noindex, nofollow")
+
     def test_stranice_imaju_meta_oznake_za_robote_i_referrer(self):
         for adresa in ("/", "/g/ZZZZZ9/"):
             with self.subTest(adresa=adresa):
@@ -23,9 +28,14 @@ class NoIndexTest(TestCase):
         self.assertEqual(odgovor.status_code, 200)
         self.assertTrue(odgovor["Content-Type"].startswith("text/plain"))
         sadrzaj = odgovor.content.decode()
-        self.assertTrue(sadrzaj.startswith("User-agent: *\n"))
-        for putanja in ("/g/", "/vlasnik/", "/aktivacija/", "/partner/"):
-            self.assertIn(f"Disallow: {putanja}\n", sadrzaj)
+        self.assertEqual(
+            sadrzaj,
+            "User-agent: *\n"
+            "Disallow: /g/\n"
+            "Disallow: /vlasnik/\n"
+            "Disallow: /aktivacija/\n"
+            "Disallow: /partner/\n",
+        )
 
     def test_sigurnosna_zaglavlja(self):
         odgovor = self.client.get("/g/ZZZZZ9/")

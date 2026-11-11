@@ -41,6 +41,9 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    # Prvi na popisu, da zaglavlje dobiju i odgovori koje stvore ostali međuslojevi
+    # (preusmjeravanja, greške).
+    "jezgra.middleware.NoIndexMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -49,10 +52,10 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django_htmx.middleware.HtmxMiddleware",
-    "jezgra.middleware.NoIndexMiddleware",
 ]
 
-# Sigurnosna zaglavlja (P-15)
+# Sigurnosna zaglavlja (P-15). Ovo su i Djangove zadane vrijednosti; ovdje su
+# zapisane izričito, da ih buduća promjena Djanga ne ukine neprimjetno.
 X_FRAME_OPTIONS = "DENY"  # stranica se ne može ugraditi u tuđi <iframe>
 SECURE_CONTENT_TYPE_NOSNIFF = True
 # Adresa s tokenom obiteljskog linka ne smije se poslati drugim stranicama.

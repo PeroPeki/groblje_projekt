@@ -17,7 +17,6 @@ Disallow: /g/
 Disallow: /vlasnik/
 Disallow: /aktivacija/
 Disallow: /partner/
-Disallow: /admin/
 """
 
 
