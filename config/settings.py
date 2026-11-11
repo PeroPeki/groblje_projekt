@@ -132,16 +132,21 @@ MEDIJI_MAX_STRANICA_SLIKE_PX = 2048
 
 
 # Ograničenje pogrešnih pokušaja (odluka 5, pristup/ogranicenja.py).
-# vrsta: (najviše po IP adresi za isti cilj, prozor u minutama,
-#         najviše po cilju s bilo koje adrese, prozor u minutama)
+# Svaka granica je (najviše neuspjeha, u koliko minuta); toliko traje i blokada.
 
 OGRANICENJA_POKUSAJA = {
-    "lozinka": (5, 15, 30, 60),
+    "lozinka": {
+        "po_ip": (5, 15),  # ista IP adresa i isti grob
+        "po_cilju": (30, 60),  # isti grob, s bilo koje adrese
+    },
 }
 
 # Na hostingu je aplikacija iza posrednika (proxyja), pa se IP adresa posjetitelja
 # čita iz zaglavlja X-Forwarded-For. Lokalno mora ostati False.
 IZA_PROXYJA = env.bool("IZA_PROXYJA", default=False)
+# Koliko posrednika stoji ispred aplikacije (svaki dopisuje jednu adresu na kraj
+# zaglavlja). Provjerava se pri objavi (P-42).
+PROXY_BROJ_POSREDNIKA = env.int("PROXY_BROJ_POSREDNIKA", default=1)
 
 
 # QR kodovi: početak linka na pločici, VELIKIM slovima (odluka 18).

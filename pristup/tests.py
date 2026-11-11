@@ -1,5 +1,6 @@
 """Testovi javnog pristupa grobu: ruta /g/<kod>/, lozinka, pamćenje uređaja."""
 
+import io
 import re
 from datetime import date
 from datetime import timedelta
@@ -7,6 +8,7 @@ from decimal import Decimal
 
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
+from django.db import models
 from django.http import HttpResponse
 from django.test import TestCase, override_settings
 from django.utils import timezone
@@ -416,19 +418,51 @@ class ZakljucavanjeTest(TestCase):
         self.assertZakljucano(self.upisi(self.LOZINKA, HTTP_X_FORWARDED_FOR="198.51.100.200"))
 
     @override_settings(IZA_PROXYJA=True)
-    def test_iza_proxyja_se_broji_adresa_iz_x_forwarded_for(self):
+    def test_iza_proxyja_se_broji_adresa_koju_je_dopisao_proxy(self):
         # Svi zahtjevi dolaze s adrese proxyja (REMOTE_ADDR), a posjetitelji su različiti.
-        self.pogrijesi(5, ip="10.0.0.1", HTTP_X_FORWARDED_FOR="203.0.113.5, 10.0.0.1")
+        self.pogrijesi(5, ip="10.0.0.1", HTTP_X_FORWARDED_FOR="203.0.113.5")
         isti = self.upisi(self.LOZINKA, ip="10.0.0.1", HTTP_X_FORWARDED_FOR="203.0.113.5")
         self.assertZakljucano(isti)
         drugi = self.upisi(self.LOZINKA, ip="10.0.0.1", HTTP_X_FORWARDED_FOR="198.51.100.7")
         self.assertRedirects(drugi, "/g/K7M4QX/", fetch_redirect_response=False)
 
     @override_settings(IZA_PROXYJA=True)
+    def test_lazni_pocetak_zaglavlja_ne_zaobilazi_ogranicenje(self):
+        # Napadač sam šalje X-Forwarded-For; proxy njegovu pravu adresu dopisuje na kraj.
+        for i in range(5):
+            self.upisi("kriva-lozinka", ip="10.0.0.1", HTTP_X_FORWARDED_FOR=f"1.2.3.{i}, 203.0.113.5")
+        odgovor = self.upisi(self.LOZINKA, ip="10.0.0.1", HTTP_X_FORWARDED_FOR="1.2.3.99, 203.0.113.5")
+        self.assertZakljucano(odgovor)
+
+    @override_settings(IZA_PROXYJA=True, PROXY_BROJ_POSREDNIKA=2)
+    def test_dva_posrednika_uzimaju_predzadnju_adresu(self):
+        self.upisi("kriva-lozinka", ip="10.0.0.1", HTTP_X_FORWARDED_FOR="1.2.3.4, 203.0.113.5, 10.0.0.9")
+        self.assertEqual(NeuspjeliPokusaj.objects.get().ip, "203.0.113.5")
+
+    @override_settings(IZA_PROXYJA=True)
     def test_neispravno_zaglavlje_ne_rusi_stranicu(self):
         odgovor = self.upisi("kriva-lozinka", HTTP_X_FORWARDED_FOR="<script>, nije-adresa")
         self.assertEqual(odgovor.status_code, 200)
         self.assertEqual(NeuspjeliPokusaj.objects.get().ip, "203.0.113.5")
+
+    def test_ipv6_se_broji_po_bloku_a_ipv4_u_ipv6_zapisu_kao_ipv4(self):
+        self.upisi("kriva-lozinka", ip="2001:db8:1:2:aaaa:bbbb:cccc:dddd")
+        self.upisi("kriva-lozinka", ip="::ffff:203.0.113.5")
+        self.assertEqual(
+            sorted(NeuspjeliPokusaj.objects.values_list("ip", flat=True)),
+            ["2001:db8:1:2::", "203.0.113.5"],
+        )
+
+    def test_blokada_traje_15_minuta_od_zadnjeg_pogresnog_pokusaja(self):
+        # Četiri stara neuspjeha i peti maloprije: blokada tek počinje.
+        self.pogrijesi(4)
+        self.pomakni_pokusaje_u_proslost(minuta=14)
+        self.pogrijesi(1)
+        self.assertContains(self.upisi(self.LOZINKA), "15 minuta", status_code=429)
+
+        # Deset minuta kasnije i dalje je blokirano, a poruka kaže koliko je ostalo.
+        NeuspjeliPokusaj.objects.update(vrijeme=models.F("vrijeme") - timedelta(minutes=10))
+        self.assertContains(self.upisi(self.LOZINKA), "5 minuta", status_code=429)
 
     # --- čišćenje ------------------------------------------------------------
 
@@ -438,5 +472,7 @@ class ZakljucavanjeTest(TestCase):
         NeuspjeliPokusaj.objects.filter(pk=stari.pk).update(
             vrijeme=timezone.now() - timedelta(hours=25)
         )
-        call_command("ocisti_pokusaje", stdout=open("/dev/null", "w"))
+        izlaz = io.StringIO()
+        call_command("ocisti_pokusaje", stdout=izlaz)
+        self.assertIn("Obrisano neuspjelih pokušaja: 1", izlaz.getvalue())
         self.assertEqual(NeuspjeliPokusaj.objects.count(), 1)

@@ -88,8 +88,8 @@ Model `NeuspjeliPokusaj` (aplikacija `pristup`) nije vezan stranim ključem: bil
 vrstu (lozinka ili aktivacija), cilj (ID groba ili kod pločice) i IP adresu, za
 zaključavanje nakon više pogrešnih pokušaja (P-13). Granice su u postavci
 `OGRANICENJA_POKUSAJA`: za lozinku groba 5 pogrešnih s iste IP adrese u 15 minuta
-ili 30 s bilo koje adrese u sat vremena. Dok blokada traje, lozinka se uopće ne
-provjerava. Zapise starije od 24 sata briše naredba `ocisti_pokusaje`.
+ili 30 s bilo koje adrese u sat vremena. Blokada traje isto toliko, računajući od zadnjeg pogrešnog pokušaja, i dok traje,
+lozinka se uopće ne provjerava. Zapise starije od 24 sata briše naredba `ocisti_pokusaje`.
 
 ## Ključne odluke
 
