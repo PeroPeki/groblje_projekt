@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "mediji",
     "knjiga",
     "vlasnik",
+    "aktivacija",
 ]
 
 MIDDLEWARE = [
@@ -150,6 +151,8 @@ OGRANICENJA_POKUSAJA = {
         "po_ip": (5, 15),  # ista IP adresa i isti grob
         "po_cilju": (30, 60),  # isti grob, s bilo koje adrese
     },
+    # Aktivacijski kod: 5 pogrešnih s iste IP adrese na sat, 10 po pločici na dan (P-18).
+    "aktivacija": {"po_ip": (5, 60), "po_cilju": (10, 24 * 60)},
     # Linkovi za prijavu: najviše 3 za isti e-mail u 15 minuta (P-17).
     # S jedne IP adrese najviše 10 zahtjeva u 15 minuta, na koje god adrese.
     "prijava": {"po_ip": (3, 15), "po_cilju": (3, 15), "po_ip_ukupno": (10, 15)},

@@ -1,0 +1,17 @@
+{% comment %}
+  Privremeni ispis svih polja forme (oznaka, polje, pomoćni tekst, greške).
+  Varijable: forma. Polja ispisuje Django ({{ polje }}), pa su name atributi točni.
+{% endcomment %}
+{% if forma.non_field_errors %}
+  <div class="font-semibold text-red-800" role="alert">{{ forma.non_field_errors }}</div>
+{% endif %}
+{% for polje in forma %}
+  <div class="space-y-1">
+    <label class="block font-semibold" for="{{ polje.id_for_label }}">{{ polje.label }}</label>
+    {{ polje }}
+    {% if polje.help_text %}<p class="text-base">{{ polje.help_text }}</p>{% endif %}
+    {% for greska in polje.errors %}
+      <p class="font-semibold text-red-800" role="alert">{{ greska }}</p>
+    {% endfor %}
+  </div>
+{% endfor %}

@@ -1,15 +1,33 @@
 {% extends "base.html" %}
 {% load i18n %}
-{# Varijable: kod (str, 6 znakova s pločice) #}
-{# Isti ekran za nepostojeću i neaktiviranu pločicu: ne smije prikazati ništa drugo o pločici. #}
-{# Forma za aktivacijski kod dolazi u P-18. #}
+{# Varijable: kod (str, 6 znakova s pločice), forma (polje aktivacijski_kod), korak (int), ukupno_koraka (int) #}
+{# Isti ekran za nepostojeću, neaktiviranu i već aktiviranu pločicu: ne smije prikazati ništa drugo o pločici. #}
+{# Forma: POST na aktivacija:unos_koda, csrf_token, name="aktivacijski_kod". #}
 
 {% block naslov %}{% translate "Aktivacija pločice" %}{% endblock %}
 
 {% block sadrzaj %}
 <div class="p-6 space-y-4 text-lg">
+  <p>{% blocktranslate %}Korak {{ korak }} od {{ ukupno_koraka }}{% endblocktranslate %}</p>
   <h1 class="text-2xl font-semibold">{% translate "Ova pločica još nije aktivirana" %}</h1>
   <p>{% translate "Kod pločice:" %} <strong>{{ kod }}</strong></p>
-  <p>{% translate "Za aktivaciju vam treba aktivacijski kod koji ste dobili na papiru uz pločicu." %}</p>
+  <p>{% translate "Upišite aktivacijski kod s papira koji ste dobili uz pločicu. Ima 8 znakova." %}</p>
+
+  <form method="post" action="{% url 'aktivacija:unos_koda' kod=kod %}" class="space-y-3">
+    {% csrf_token %}
+    <label class="block font-semibold" for="{{ forma.aktivacijski_kod.id_for_label }}">{% translate "Aktivacijski kod" %}</label>
+    <input class="block w-full rounded-lg border p-3 text-2xl tracking-widest uppercase" type="text"
+           name="{{ forma.aktivacijski_kod.html_name }}" id="{{ forma.aktivacijski_kod.id_for_label }}"
+           autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text" required
+           {% if forma.aktivacijski_kod.errors %}aria-invalid="true" aria-describedby="greska-kod"{% endif %}>
+    {% if forma.aktivacijski_kod.errors %}
+      <p id="greska-kod" class="font-semibold text-red-800" role="alert">
+        {% for greska in forma.aktivacijski_kod.errors %}{{ greska }} {% endfor %}
+      </p>
+    {% endif %}
+    <button class="w-full rounded-lg bg-gray-900 px-5 py-3 text-lg text-white" type="submit">
+      {% translate "Nastavi" %}
+    </button>
+  </form>
 </div>
 {% endblock %}

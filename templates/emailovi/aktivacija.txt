@@ -1,0 +1,15 @@
+{% load i18n %}{% autoescape off %}{% blocktranslate %}Poštovani,
+
+pločica je aktivirana i stranica „{{ naziv_groba }}” je spremna:
+
+{{ link_groba }}
+
+Posjetitelji je otvaraju lozinkom groba koju ste upravo postavili. Lozinku ne šaljemo e-mailom.
+
+Za uređivanje (pokojnici, slike, video, poruke) prijavljujete se ovom e-mail adresom, bez lozinke:
+
+{{ link_prijave }}
+
+Ako ovu pločicu niste aktivirali Vi, odgovorite na ovu poruku.
+
+Vječna spomen{% endblocktranslate %}{% endautoescape %}
