@@ -1,5 +1,7 @@
 # Vječna spomen
 
+[![testovi](https://github.com/PeroPeki/groblje_projekt/actions/workflows/testovi.yml/badge.svg)](https://github.com/PeroPeki/groblje_projekt/actions/workflows/testovi.yml)
+
 Digitalna spomen-stranica uz QR pločicu na grobu: posjetitelj skenira kod i otvara profil pokojnika sa slikama, videom i knjigom sjećanja.
 
 Tehnologije: Django 6.1, PostgreSQL 18, Tailwind CSS 4 (bez Node.js), HTMX 2.
@@ -102,6 +104,19 @@ Na Windowsu vatrozid može pitati za dopuštenje: dopusti pristup za privatne mr
 - **`ModuleNotFoundError: No module named 'django'`**: okruženje nije aktivirano.
 - **Klasa se ne primjenjuje:** Tailwind ne prepoznaje klase sastavljene od dijelova (`text-{{ velicina }}`), klasa mora biti napisana cijela. Pomoć: `python manage.py tailwind troubleshoot`.
 - **`DisallowedHost`**: adresa s koje otvaraš stranicu nije u `ALLOWED_HOSTS` u `.env`.
+
+## Testovi
+
+```
+python manage.py test
+```
+
+Testovi sami stvaraju privremenu bazu i svoje podatke, pa ne diraju tvoju. Na GitHubu
+ih pri svakom pull requestu pokreće GitHub Actions (`.github/workflows/testovi.yml`),
+na PostgreSQL-u 18 i na SQLite-u. PR s testom koji pada ne spaja se.
+
+Lokalno se razvija na Pythonu 3.14, a GitHub Actions koristi 3.13 (ista verzija
+planirana je i za poslužitelj), pa kod mora raditi na obje.
 
 ## Struktura
 

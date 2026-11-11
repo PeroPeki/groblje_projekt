@@ -1,6 +1,51 @@
-"""Testovi zajedničkih dijelova: zaštita od indeksiranja i sigurnosna zaglavlja (P-15)."""
+"""Testovi zajedničkih dijelova: kodovi pločica, QR, noindex i sigurnosna zaglavlja."""
 
-from django.test import TestCase
+from django.contrib.auth.hashers import check_password
+from django.test import TestCase, override_settings
+
+from jezgra import kodovi
+from jezgra.models import Partner, Plocica, SerijaPlocica
+from jezgra.qr import link_za_kod, qr_za_kod
+
+
+class KodoviTest(TestCase):
+    def test_kod_plocice_ima_6_znakova_bez_dvosmislenih(self):
+        for _ in range(1000):
+            kod = kodovi.novi_kod_plocice()
+            self.assertEqual(len(kod), 6)
+            self.assertFalse(set(kod) & set("0O1IL"), kod)
+
+    def test_aktivacijski_kod_ima_8_znakova_bez_dvosmislenih(self):
+        for _ in range(1000):
+            kod = kodovi.novi_aktivacijski_kod()
+            self.assertEqual(len(kod), 8)
+            self.assertFalse(set(kod) & set("0O1IL"), kod)
+
+    def test_kodovi_su_velikim_slovima_i_ne_ponavljaju_se(self):
+        uzorak = {kodovi.novi_kod_plocice() for _ in range(200)}
+        self.assertGreater(len(uzorak), 195)
+        self.assertTrue(all(kod == kod.upper() for kod in uzorak))
+
+    def test_aktivacijski_kod_je_u_bazi_samo_kao_hash(self):
+        partner = Partner.objects.create(naziv="Probni partner")
+        serija = SerijaPlocica.objects.create(partner=partner, oznaka="TEST-KOD", broj_komada=1)
+        plocica = Plocica(serija=serija, kod="K7M4QX")
+        plocica.postavi_aktivacijski_kod("ABCD2345")
+        plocica.save()
+        plocica.refresh_from_db()
+        self.assertNotIn("ABCD2345", plocica.aktivacijski_kod_hash)
+        self.assertTrue(check_password("ABCD2345", plocica.aktivacijski_kod_hash))
+        self.assertTrue(plocica.provjeri_aktivacijski_kod(" abcd2345 "))
+        self.assertFalse(plocica.provjeri_aktivacijski_kod("ABCD2346"))
+
+
+class QrTest(TestCase):
+    @override_settings(QR_BAZNI_URL="HTTPS://VJECNASPOMEN.HR/G/")
+    def test_qr_za_hr_domenu_je_verzija_3_s_korekcijom_h(self):
+        self.assertEqual(link_za_kod("k7m4qx"), "HTTPS://VJECNASPOMEN.HR/G/K7M4QX")
+        qr = qr_za_kod("K7M4QX")
+        self.assertEqual(qr.version, 3)  # 29 × 29 modula (odluka 18)
+        self.assertEqual(qr.error, "H")
 
 
 class NoIndexTest(TestCase):

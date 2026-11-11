@@ -1,0 +1,51 @@
+name: testovi
+
+# Na svakom pull requestu i nakon svakog spajanja u main.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          # Nije tajna: baza postoji samo dok traje testiranje.
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-retries 10
+    env:
+      SECRET_KEY: samo-za-ci
+      DEBUG: "False"
+      ALLOWED_HOSTS: localhost
+      DATABASE_URL: postgres://test:test@localhost:5432/test
+      QR_BAZNI_URL: HTTP://LOCALHOST:8000/G/
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: ffmpeg (obrada videa, od P-30)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+      - run: python manage.py check
+      - name: Nema nezabilježenih promjena modela
+        run: python manage.py makemigrations --check --dry-run
+      - name: Testovi (PostgreSQL)
+        run: python manage.py test
+      - name: Testovi (SQLite, kao kod rada na predlošcima)
+        run: python manage.py test
+        env:
+          DATABASE_URL: sqlite:///ci.sqlite3
