@@ -69,9 +69,11 @@ class Command(BaseCommand):
         if serija is None:
             partner = Partner.objects.create(naziv="Probni partner (razvoj)")
             serija = SerijaPlocica.objects.create(partner=partner, oznaka=OZNAKA_SERIJE, broj_komada=2)
-        korisnik = Korisnik.objects.filter(email=EMAIL).first() or Korisnik.objects.create(
-            email=EMAIL, username=EMAIL
-        )
+        korisnik = Korisnik.objects.filter(email=EMAIL).first()
+        if korisnik is None:
+            korisnik = Korisnik(email=EMAIL, username=EMAIL)
+            korisnik.set_unusable_password()  # prijava je samo linkom na e-mail
+            korisnik.save()
 
         obiteljski = self.stvori_grob(serija, korisnik, KOD_OBITELJSKOG, "Obitelj Probić")
         marija = Pokojnik.objects.create(

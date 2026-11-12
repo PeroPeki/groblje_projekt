@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% load i18n %}
+{# Varijable: kod (str), grob (Grob), pokojnik (Pokojnik ili None), korak (int), ukupno_koraka (int) #}
+{# Gumb za dodavanje slika dolazi u P-28. Zasad postoji samo „Preskoči”. #}
+
+{% block naslov %}{% translate "Dodajte slike" %}{% endblock %}
+
+{% block sadrzaj %}
+<div class="p-6 space-y-4 text-lg">
+  <p>{% blocktranslate %}Korak {{ korak }} od {{ ukupno_koraka }}{% endblocktranslate %}</p>
+  <h1 class="text-2xl font-semibold">{% translate "Dodajte slike" %}</h1>
+  <p>{% translate "Slike i video možete dodati i kasnije, kad se prijavite svojom e-mail adresom." %}</p>
+  <a class="block w-full rounded-lg bg-gray-900 px-5 py-3 text-center text-lg text-white"
+     href="{% url 'aktivacija:gotovo' kod=kod %}">
+    {% translate "Preskoči, dodat ću kasnije" %}
+  </a>
+</div>
+{% endblock %}

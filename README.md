@@ -134,6 +134,7 @@ tek u 3.14.
 | `jezgra/` | glavni modeli (partner, pločica, grob, pokojnik), admin i probna početna stranica |
 | `pristup/` | javni dio: `/g/<KOD>/`, zaključani ekran, lozinka groba, pamćenje uređaja, ograničenje pokušaja |
 | `vlasnik/` | vlasnički dio: prijava linkom na e-mail, popis grobova |
+| `aktivacija/` | čarobnjak za aktivaciju pločice: aktivacijski kod → grob i lozinka → prvi pokojnik → slike |
 | `templates/` | svi HTML predlošci (`base.html` je okvir za sve stranice) |
 | `static/` | CSS, JavaScript, slike i fontovi koji se poslužuju pregledniku |
 | `tailwind/ulaz.css` | izvorni Tailwind CSS i tema (boje, fontovi) |

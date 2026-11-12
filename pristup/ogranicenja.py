@@ -11,6 +11,7 @@ import math
 from datetime import timedelta
 
 from django.conf import settings
+from django.shortcuts import render
 from django.utils import timezone
 
 from .models import NeuspjeliPokusaj
@@ -101,3 +102,16 @@ def najdulji_prozor() -> timedelta:
         prozor for granice in settings.OGRANICENJA_POKUSAJA.values() for _, prozor in granice.values()
     ]
     return timedelta(minutes=max(minute))
+
+
+def prikaz_cekanja(minuta: int) -> str:
+    """„15 min” ili „24 h”: kratice, da ne ovisimo o padežima (1 minutu, 2 minute, 5 minuta)."""
+    if minuta > 90:
+        return f"{math.ceil(minuta / 60)} h"
+    return f"{minuta} min"
+
+
+def odgovor_blokade(request, minuta: int):
+    """Stranica „Previše pokušaja”. Ne prikazuje ništa o grobu ni pločici."""
+    kontekst = {"cekanje": prikaz_cekanja(minuta)}
+    return render(request, "greske/zakljucano.html", kontekst, status=429)

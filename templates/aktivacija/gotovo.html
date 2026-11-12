@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% load i18n %}
+{# Varijable: kod (str), grob (Grob), email (str, kontakt za prijavu), prijavljen (bool) #}
+
+{% block naslov %}{% translate "Pločica je aktivirana" %}{% endblock %}
+
+{% block sadrzaj %}
+<div class="p-6 space-y-4 text-lg">
+  <h1 class="text-2xl font-semibold">{% translate "Pločica je aktivirana" %}</h1>
+  <p>{% blocktranslate with naziv=grob.naziv %}Stranica „{{ naziv }}” je spremna. Tko skenira pločicu i upiše lozinku groba, vidjet će je.{% endblocktranslate %}</p>
+  <p>{% blocktranslate %}Za uređivanje se prijavljujete adresom {{ email }}. Na nju smo poslali poruku s uputama.{% endblocktranslate %}</p>
+  <a class="block w-full rounded-lg bg-gray-900 px-5 py-3 text-center text-lg text-white"
+     href="{% url 'pristup:grob' kod=kod %}">
+    {% translate "Pogledaj stranicu" %}
+  </a>
+  {% if prijavljen %}
+    <a class="block w-full rounded-lg border px-5 py-3 text-center text-lg" href="{% url 'vlasnik:popis' %}">
+      {% translate "Uredi sadržaj" %}
+    </a>
+  {% endif %}
+</div>
+{% endblock %}

@@ -121,6 +121,24 @@ obiteljskog linka odjavljuje one koji su ušli preko njega. Logika je u `pristup
 Lozinka groba ima najmanje 6 znakova (`jezgra/lozinke.py`), što provjerava i sam
 `Grob.postavi_lozinku()`.
 
+## Aktivacija (P-18 do P-20)
+
+Čarobnjak: aktivacijski kod → podaci groba i lozinka → prvi pokojnik → slike.
+
+- Aktivacijski kod se prije provjere normalizira (velika slova, bez razmaka i crtica).
+  Pogrešan kod, kod druge pločice, već aktivirana i nepostojeća pločica daju istu poruku.
+- Ograničenje: 5 pogrešnih s iste IP adrese na sat i 10 po pločici na dan.
+- Grob nastaje u jednoj transakciji uz `select_for_update` nad pločicom
+  (`aktivacija/servis.py`), pa dva istovremena zahtjeva stvaraju samo jedan grob.
+  Partner se kopira iz serije.
+- Ako e-mail kontakta za prijavu još nema račun, račun se stvara (bez lozinke) i osoba
+  je odmah prijavljena (OP-5). **Ako račun već postoji, grob mu se dodaje, ali se osoba
+  ne prijavljuje**: inače bi svatko s aktivacijskim kodom upisom tuđe adrese ušao u tuđi
+  račun. Čarobnjak se tada dovršava preko oznake u sesiji (60 minuta), a vlasnik računa
+  dobiva e-mail. Usput se odjavljuju sve stare prijave tog računa, pa pristup gubi i
+  netko tko je račun ranije otvorio na tuđu adresu.
+- Adresa administratora ili isključenog računa ne može biti kontakt za prijavu.
+
 ## Prijava vlasnika (P-17)
 
 Vlasnički dio nema lozinku. Kontakt za prijavu upiše e-mail i dobije link

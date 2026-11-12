@@ -6,12 +6,13 @@ from django.utils.translation import gettext as _
 from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_post_parameters
 
+from aktivacija.views import ekran_unosa_koda
 from jezgra.models import Grob, Plocica
 
 from .forms import LozinkaForm
 from .kolacici import dodijeli_pristup, ima_pristup
 from .models import NeuspjeliPokusaj
-from .ogranicenja import ip_posjetitelja, je_zakljucano, zabiljezi_neuspjeh
+from .ogranicenja import ip_posjetitelja, je_zakljucano, odgovor_blokade, zabiljezi_neuspjeh
 
 # Grob posjetitelju postoji samo ako je njegova pločica aktivirana.
 AKTIVIRANI_GROBOVI = Grob.objects.filter(
@@ -38,7 +39,7 @@ def zakljucani_ekran(request, grob, kod):
         minuta = je_zakljucano(NeuspjeliPokusaj.Vrsta.LOZINKA, grob.pk, ip)
         if minuta:
             # Dok traje blokada, lozinka se uopće ne provjerava (ni točna ne prolazi).
-            return render(request, "greske/zakljucano.html", {"minuta": minuta}, status=429)
+            return odgovor_blokade(request, minuta)
         if grob.provjeri_lozinku(forma.cleaned_data["lozinka"]):
             # Post/Redirect/Get: nakon točne lozinke vraćamo se na istu adresu.
             odgovor = redirect(request.get_full_path())
@@ -66,7 +67,7 @@ def grob(request, kod):
     if grob is None:
         # Pločica ne postoji ILI još nije aktivirana: namjerno isti odgovor,
         # da se izvana ne može pogoditi koji kodovi postoje (odluka 8).
-        return render(request, "aktivacija/unos_koda.html", {"kod": kod})
+        return ekran_unosa_koda(request, kod)
     if not ima_pristup(request, grob):
         return zakljucani_ekran(request, grob, kod)
 

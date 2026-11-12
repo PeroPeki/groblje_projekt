@@ -123,7 +123,8 @@ class RutaGrobaTest(TestCase):
         # Razlikovati se smiju samo upisani kod i CSRF token (svaki put je drugačiji).
         def ocisti(odgovor, kod):
             html = odgovor.content.decode().replace(kod, "KOD")
-            return re.sub(r'"X-CSRFToken": "[^"]+"', "", html)
+            html = re.sub(r'"X-CSRFToken": "[^"]+"', "", html)
+            return re.sub(r'name="csrfmiddlewaretoken" value="[^"]+"', "", html)
 
         self.assertEqual(ocisti(neaktivirana, "NEAKT2"), ocisti(nepostojeca, "ZZZZZ9"))
         self.assertEqual(dict(neaktivirana.headers), dict(nepostojeca.headers))
@@ -362,7 +363,7 @@ class ZakljucavanjeTest(TestCase):
         self.pogrijesi(5)
         odgovor = self.upisi(self.LOZINKA)
         self.assertZakljucano(odgovor)
-        self.assertContains(odgovor, "15 minuta", status_code=429)
+        self.assertContains(odgovor, "15 min", status_code=429)
         self.assertNotIn(kolacici.naziv(self.grob), odgovor.cookies)
 
     def test_poruka_o_blokadi_ne_otkriva_nista_o_grobu(self):
@@ -399,7 +400,7 @@ class ZakljucavanjeTest(TestCase):
             self.upisi("kriva-lozinka", ip=f"198.51.100.{i}")
         odgovor = self.upisi(self.LOZINKA, ip="192.0.2.99")
         self.assertZakljucano(odgovor)
-        self.assertContains(odgovor, "60 minuta", status_code=429)
+        self.assertContains(odgovor, "60 min", status_code=429)
 
         self.pomakni_pokusaje_u_proslost(minuta=61)
         odgovor = self.upisi(self.LOZINKA, ip="192.0.2.99")
@@ -459,11 +460,11 @@ class ZakljucavanjeTest(TestCase):
         self.pogrijesi(4)
         self.pomakni_pokusaje_u_proslost(minuta=14)
         self.pogrijesi(1)
-        self.assertContains(self.upisi(self.LOZINKA), "15 minuta", status_code=429)
+        self.assertContains(self.upisi(self.LOZINKA), "15 min", status_code=429)
 
         # Deset minuta kasnije i dalje je blokirano, a poruka kaže koliko je ostalo.
         NeuspjeliPokusaj.objects.update(vrijeme=models.F("vrijeme") - timedelta(minutes=10))
-        self.assertContains(self.upisi(self.LOZINKA), "5 minuta", status_code=429)
+        self.assertContains(self.upisi(self.LOZINKA), "5 min", status_code=429)
 
     # --- čišćenje ------------------------------------------------------------
 

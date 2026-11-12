@@ -11,5 +11,6 @@ urlpatterns = [
     path("robots.txt", jezgra.robots_txt, name="robots_txt"),
     path("admin/", admin.site.urls),
     path("vlasnik/", include("vlasnik.urls")),
+    path("aktivacija/", include("aktivacija.urls")),
     path("", include("pristup.urls")),
 ]

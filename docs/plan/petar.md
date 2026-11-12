@@ -972,7 +972,7 @@ Obitelj aktivira pločicu čarobnjakom, prijavljuje se e-mailom i upravlja grobo
 - Programi za e-poštu ponekad „otvore” link radi provjere i tako potroše jednokratni token. Ako se to dogodi u testiranju, potvrdna stranica neka traži klik na gumb „Prijavi me” (POST) umjesto prijave već pri samom otvaranju linka.
 
 ### P-18 Čarobnjak za aktivaciju, korak 1: aktivacijski kod
-- [ ] Gotovo
+- [x] Gotovo
 
 **Cilj:** na ekranu neaktivirane pločice posjetitelj upiše 8-znakovni aktivacijski kod. Ako je točan, ulazi u čarobnjak. Pokušaji su ograničeni.
 
@@ -999,7 +999,7 @@ Obitelj aktivira pločicu čarobnjakom, prijavljuje se e-mailom i upravlja grobo
 **Procjena:** 2–3 sata.
 
 ### P-19 Čarobnjak, korak 2: podaci groba, lozinka i kontakt za prijavu
-- [ ] Gotovo
+- [x] Gotovo
 
 **Cilj:** obitelj upiše naziv groba, oznaku grobnog mjesta, ime vlasnika, e-mail osobe koja će voditi profil i lozinku groba. Pločica se u jednoj transakciji aktivira i postaje QR oznaka novog groba.
 
