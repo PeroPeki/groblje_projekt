@@ -2,8 +2,9 @@ from django import forms
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from jezgra.lozinke import MAX_DULJINA_LOZINKE_GROBA, provjeri_lozinku_groba
+from jezgra.forms import NovaLozinkaGrobaForm
 from jezgra.models import Pokojnik
+from jezgra.tekst import jedan_red
 
 
 def normaliziraj_aktivacijski_kod(unos: str) -> str:
@@ -18,7 +19,10 @@ class AktivacijskiKodForm(forms.Form):
         return normaliziraj_aktivacijski_kod(self.cleaned_data["aktivacijski_kod"])
 
 
-class GrobForm(forms.Form):
+class GrobForm(NovaLozinkaGrobaForm):
+    # Polja lozinka i lozinka2 dolaze iz NovaLozinkaGrobaForm.
+    field_order = ["naziv", "oznaka_grobnog_mjesta", "vlasnik_ime", "email", "lozinka", "lozinka2"]
+
     naziv = forms.CharField(
         label=_("Naziv groba"),
         max_length=200,
@@ -42,36 +46,12 @@ class GrobForm(forms.Form):
         max_length=150,  # e-mail je ujedno korisničko ime (najviše 150 znakova)
         help_text=_("Na ovu adresu šaljemo link za prijavu. Lozinka za prijavu ne postoji."),
     )
-    lozinka = forms.CharField(
-        label=_("Lozinka groba"),
-        max_length=MAX_DULJINA_LOZINKE_GROBA,
-        widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}),
-        help_text=_("Najmanje 6 znakova. Ovu lozinku dajete obitelji i prijateljima."),
-    )
-    lozinka2 = forms.CharField(
-        label=_("Ponovite lozinku groba"),
-        max_length=MAX_DULJINA_LOZINKE_GROBA,
-        widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}),
-    )
 
     def clean_email(self):
         return self.cleaned_data["email"].strip().lower()
 
     def clean_naziv(self):
-        # Jedan red teksta: naziv ide i u naslov e-maila.
-        return " ".join(self.cleaned_data["naziv"].split())
-
-    def clean_lozinka(self):
-        lozinka = self.cleaned_data["lozinka"]
-        provjeri_lozinku_groba(lozinka)
-        return lozinka
-
-    def clean(self):
-        podaci = super().clean()
-        lozinka, lozinka2 = podaci.get("lozinka"), podaci.get("lozinka2")
-        if lozinka and lozinka2 and lozinka != lozinka2:
-            self.add_error("lozinka2", _("Lozinke nisu jednake."))
-        return podaci
+        return jedan_red(self.cleaned_data["naziv"])
 
 
 class PokojnikForm(forms.ModelForm):

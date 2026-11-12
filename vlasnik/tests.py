@@ -431,5 +431,48 @@ class PostavkeGrobaTest(VlasnickiDioBaza):
         self.assertContains(odgovor, "označite da razumijete")
         self.assertContains(odgovor, "Uključi javni prikaz")
 
+    def test_neispravna_vrijednost_ne_mijenja_javni_prikaz(self):
+        Grob.objects.filter(pk=self.grob.pk).update(javni_prikaz=True)
+        for podaci in ({}, {"javni_prikaz": "mozda"}):
+            with self.subTest(podaci=podaci):
+                self.assertEqual(self.javni_prikaz(**podaci).status_code, 400)
+        self.grob.refresh_from_db()
+        self.assertTrue(self.grob.javni_prikaz)
+
+    def test_htmx_nakon_isteka_prijave_otvara_prijavu_kao_cijelu_stranicu(self):
+        self.client.logout()
+        odgovor = self.javni_prikaz(htmx=True, javni_prikaz="da", potvrda="da")
+        self.assertEqual(odgovor.status_code, 204)
+        self.assertEqual(odgovor["HX-Redirect"], "/vlasnik/prijava/")
+
+    def test_stranice_vlasnickog_dijela_se_ne_predmemoriraju(self):
+        for adresa in ("/vlasnik/", "/vlasnik/K7M4QX/postavke/"):
+            with self.subTest(adresa=adresa):
+                self.assertIn("no-store", self.client.get(adresa)["Cache-Control"])
+
+    def test_promjena_naziva_ne_dira_lozinku_ni_javni_prikaz(self):
+        # Drugi zahtjev je u međuvremenu promijenio lozinku i uključio javni prikaz.
+        stari = Grob.objects.get(pk=self.grob.pk)
+        novi = Grob.objects.get(pk=self.grob.pk)
+        novi.postavi_lozinku("nova-lozinka")
+        novi.javni_prikaz = True
+        novi.save()
+        from vlasnik.forms import NazivGrobaForm
+
+        forma = NazivGrobaForm({"naziv": "  Obitelj\nProbić   Horvat "}, instance=stari)
+        self.assertTrue(forma.is_valid())
+        forma.save(commit=False).save(update_fields=["naziv", "promijenjeno"])
+        self.grob.refresh_from_db()
+        self.assertEqual(self.grob.naziv, "Obitelj Probić Horvat")
+        self.assertTrue(self.grob.provjeri_lozinku("nova-lozinka"))
+        self.assertTrue(self.grob.javni_prikaz)
+
+    def test_promjena_lozinke_bez_kvacice_ne_ponistava_raniju_odjavu_uredjaja(self):
+        self.client.post("/vlasnik/K7M4QX/postavke/odjavi-uredjaje/")
+        self.promijeni_lozinku()
+        self.promijeni_lozinku(odjavi_uredjaje="on")
+        self.grob.refresh_from_db()
+        self.assertEqual(self.grob.verzija_pristupa, 3)
+
     def test_obican_zahtjev_bez_htmx_a_preusmjerava(self):
         self.assertRedirects(self.javni_prikaz(javni_prikaz="da", potvrda="da"), "/vlasnik/K7M4QX/postavke/")

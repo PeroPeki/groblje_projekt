@@ -2,9 +2,11 @@
 
 from django.contrib import messages
 from django.contrib.auth import logout
-from django.contrib.auth.decorators import login_required
-from django.db.models import Count, F, Q
+from django.db.models import Count, F, OuterRef, Subquery
+from django.db.models.functions import Coalesce
+from django.http import HttpResponseBadRequest
 from django.shortcuts import redirect, render
+from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_post_parameters
@@ -15,7 +17,7 @@ from jezgra.models import Grob
 from knjiga.models import PorukaSjecanja
 from pristup.models import ZahtjevZaPristup
 
-from .dozvole import vlasnik_groba
+from .dozvole import na_prijavu, vlasnik_groba
 from .forms import LozinkaGrobaForm, NazivGrobaForm, PrijavaForm
 from .prijava import prijavi, zatrazi_link_za_prijavu
 
@@ -65,25 +67,25 @@ def odjava(request):
     return redirect("vlasnik:prijava")
 
 
-@login_required
+def _broj(upit):
+    """Podupit koji vraća broj redaka (za stupac u popisu, bez množenja redaka JOIN-om)."""
+    return Subquery(upit.order_by().values("grob").annotate(broj=Count("pk")).values("broj"))
+
+
+@never_cache
 def popis(request):
     """Grobovi kojima je prijavljeni korisnik kontakt za prijavu."""
+    if not request.user.is_authenticated:
+        return na_prijavu(request)
+    poruke = PorukaSjecanja.objects.filter(
+        pokojnik__grob=OuterRef("pk"), status=PorukaSjecanja.Status.NA_CEKANJU, skrivena=False
+    ).annotate(grob=F("pokojnik__grob"))
+    zahtjevi = ZahtjevZaPristup.objects.filter(grob=OuterRef("pk"), status=ZahtjevZaPristup.Status.NOVI)
     grobovi = (
         request.user.grobovi.select_related("plocica")
         .annotate(
-            poruka_na_cekanju=Count(
-                "pokojnici__poruke",
-                filter=Q(
-                    pokojnici__poruke__status=PorukaSjecanja.Status.NA_CEKANJU,
-                    pokojnici__poruke__skrivena=False,
-                ),
-                distinct=True,
-            ),
-            zahtjeva_na_cekanju=Count(
-                "zahtjevi_za_pristup",
-                filter=Q(zahtjevi_za_pristup__status=ZahtjevZaPristup.Status.NOVI),
-                distinct=True,
-            ),
+            poruka_na_cekanju=Coalesce(_broj(poruke), 0),
+            zahtjeva_na_cekanju=Coalesce(_broj(zahtjevi), 0),
         )
         .order_by("naziv")
     )
@@ -119,7 +121,9 @@ def postavke_naziv(request, grob):
     if not forma.is_valid():
         grob.refresh_from_db()  # da se u naslovu stranice ne prikaže nespremljeni naziv
         return _stranica_postavki(request, grob, forma_naziv=forma, status=400)
-    forma.save()
+    # Sprema se samo naziv: spremanje cijelog retka moglo bi vratiti staru lozinku
+    # ili javni prikaz ako ih je u međuvremenu promijenio drugi zahtjev.
+    forma.save(commit=False).save(update_fields=["naziv", "promijenjeno"])
     messages.success(request, _("Naziv groba je promijenjen."))
     return _natrag_na_postavke(grob)
 
@@ -132,20 +136,29 @@ def postavke_lozinka(request, grob):
     if not forma.is_valid():
         return _stranica_postavki(request, grob, forma_lozinka=forma, status=400)
     grob.postavi_lozinku(forma.cleaned_data["lozinka"])
+    grob.save(update_fields=["lozinka_hash", "promijenjeno"])
     if forma.cleaned_data["odjavi_uredjaje"]:
-        # Kolačić pristupa sadrži verziju: kad se ona promijeni, stari kolačići ne vrijede.
-        grob.verzija_pristupa += 1
+        _povecaj_verziju_pristupa(grob)
         messages.success(request, _("Lozinka je promijenjena, a svi uređaji su odjavljeni."))
     else:
         messages.success(request, _("Lozinka je promijenjena."))
-    grob.save(update_fields=["lozinka_hash", "verzija_pristupa", "promijenjeno"])
     return _natrag_na_postavke(grob)
+
+
+def _povecaj_verziju_pristupa(grob):
+    """Kolačić pristupa sadrži verziju: kad se ona poveća, stari kolačići više ne vrijede.
+
+    F() povećava vrijednost u samoj bazi, pa se dvije istovremene odjave ne ponište.
+    """
+    Grob.objects.filter(pk=grob.pk).update(
+        verzija_pristupa=F("verzija_pristupa") + 1, promijenjeno=timezone.now()
+    )
 
 
 @vlasnik_groba
 @require_POST
 def odjavi_uredjaje(request, grob):
-    Grob.objects.filter(pk=grob.pk).update(verzija_pristupa=F("verzija_pristupa") + 1)
+    _povecaj_verziju_pristupa(grob)
     messages.success(request, _("Svi uređaji su odjavljeni. Za ulaz treba ponovno upisati lozinku."))
     return _natrag_na_postavke(grob)
 
@@ -154,7 +167,10 @@ def odjavi_uredjaje(request, grob):
 @require_POST
 def javni_prikaz(request, grob):
     """Prekidač javnog prikaza. Uključivanje traži izričitu potvrdu (odluka 5)."""
-    ukljuci = request.POST.get("javni_prikaz") == "da"
+    zeljeno = request.POST.get("javni_prikaz")
+    if zeljeno not in ("da", "ne"):
+        return HttpResponseBadRequest()
+    ukljuci = zeljeno == "da"
     greska = None
     if ukljuci and request.POST.get("potvrda") != "da":
         greska = _("Za uključivanje označite da razumijete što javni prikaz znači.")
