@@ -10,12 +10,13 @@ from functools import wraps
 
 from django.contrib.auth.hashers import check_password, make_password
 from django.core.mail import send_mail
+from django.db import transaction
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse
-from django.utils.functional import lazy
 from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy
 from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_post_parameters
 
@@ -32,7 +33,7 @@ from pristup.ogranicenja import (
 from vlasnik.prijava import prijavi
 
 from .forms import AktivacijskiKodForm, GrobForm, PokojnikForm
-from .servis import VecAktivirana, aktiviraj_plocicu
+from .servis import NedopustenaAdresa, VecAktivirana, aktiviraj_plocicu
 
 log = logging.getLogger(__name__)
 
@@ -41,7 +42,7 @@ TRAJANJE_SEKUNDI = 60 * 60
 SESIJA_PLOCICA = "aktivacija_plocica"  # nakon točnog aktivacijskog koda (korak 1)
 SESIJA_GROB = "aktivacija_grob"  # nakon stvaranja groba (korak 2)
 
-POGRESAN_KOD = lazy(lambda: _("Aktivacijski kod nije točan. Provjerite kod na papiru uz pločicu."), str)()
+POGRESAN_KOD = gettext_lazy("Aktivacijski kod nije točan. Provjerite kod na papiru uz pločicu.")
 
 # Za nepostojeću pločicu ipak računamo jedan hash, da odgovor traje jednako dugo
 # kao za postojeću (inače bi se po brzini odgovora vidjelo koji kodovi postoje).
@@ -125,17 +126,23 @@ def korak_grob(request, kod):
                 vlasnik_ime=podaci["vlasnik_ime"],
                 email=podaci["email"],
                 lozinka=podaci["lozinka"],
+                prijavljeni_korisnik=request.user if request.user.is_authenticated else None,
             )
         except VecAktivirana:
             request.session.pop(SESIJA_PLOCICA, None)
             return redirect("pristup:grob", kod=kod)
+        except NedopustenaAdresa:
+            forma.add_error("email", _("Ovu adresu nije moguće koristiti. Upišite drugu e-mail adresu."))
+            kontekst = {"kod": kod, "forma": forma, "korak": 2, "ukupno_koraka": UKUPNO_KORAKA}
+            return render(request, "aktivacija/korak_grob.html", kontekst)
 
         korisnik = grob.kontakt_za_prijavu
         if novi_korisnik:
             # Novi račun postoji samo zbog ovog groba, pa osobu odmah prijavljujemo (OP-5).
             # U POSTOJEĆI račun ne prijavljujemo: inače bi svatko s aktivacijskim kodom
             # upisom tuđe adrese ušao u tuđi račun. Ta osoba dobiva e-mail, a čarobnjak
-            # se nastavlja preko oznake u sesiji.
+            # se nastavlja preko oznake u sesiji. (Servis usput odjavljuje stare prijave
+            # tog računa, vidi aktivacija/servis.py.)
             prijavi(request, korisnik, backend="django.contrib.auth.backends.ModelBackend")
         request.session.pop(SESIJA_PLOCICA, None)
         request.session[SESIJA_GROB] = {"grob_id": grob.pk, "vrijeme": time.time()}
@@ -159,7 +166,8 @@ def posalji_dobrodoslicu(request, grob):
     }
     try:
         send_mail(
-            _("Pločica je aktivirana: %(naziv)s") % {"naziv": grob.naziv},
+            # Naslov e-maila ne smije sadržavati prijelom retka.
+            _("Pločica je aktivirana: %(naziv)s") % {"naziv": " ".join(grob.naziv.split())},
             render_to_string("emailovi/aktivacija.txt", kontekst),
             None,
             [grob.kontakt_za_prijavu.email],
@@ -193,16 +201,18 @@ def nastavak_aktivacije(view):
 def korak_pokojnik(request, grob):
     """Korak 3: prvi pokojnik."""
     kod = grob.plocica.kod
-    if grob.pokojnici.exists():
-        # Povratak na ovaj korak (tipka „natrag”) ne smije stvoriti istog pokojnika dvaput.
-        return redirect("aktivacija:slike", kod=kod)
-
     forma = PokojnikForm(request.POST or None)
-    if request.method == "POST" and forma.is_valid():
-        pokojnik = forma.save(commit=False)
-        pokojnik.grob = grob
-        pokojnik.save()
-        return redirect("aktivacija:slike", kod=kod)
+    with transaction.atomic():
+        # Zaključavanje groba: dvostruki dodir gumba ne smije stvoriti istog pokojnika dvaput.
+        Grob.objects.select_for_update().get(pk=grob.pk)
+        if grob.pokojnici.exists():
+            # Isto vrijedi za povratak na ovaj korak tipkom „natrag”.
+            return redirect("aktivacija:slike", kod=kod)
+        if request.method == "POST" and forma.is_valid():
+            pokojnik = forma.save(commit=False)
+            pokojnik.grob = grob
+            pokojnik.save()
+            return redirect("aktivacija:slike", kod=kod)
 
     kontekst = {
         "kod": kod,
@@ -233,6 +243,6 @@ def gotovo(request, grob):
         "kod": grob.plocica.kod,
         "grob": grob,
         "email": grob.kontakt_za_prijavu.email,
-        "prijavljen": request.user.is_authenticated,
+        "prijavljen": request.user.pk == grob.kontakt_za_prijavu_id,
     }
     return render(request, "aktivacija/gotovo.html", kontekst)

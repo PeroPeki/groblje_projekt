@@ -135,7 +135,9 @@ Lozinka groba ima najmanje 6 znakova (`jezgra/lozinke.py`), što provjerava i sa
   je odmah prijavljena (OP-5). **Ako račun već postoji, grob mu se dodaje, ali se osoba
   ne prijavljuje**: inače bi svatko s aktivacijskim kodom upisom tuđe adrese ušao u tuđi
   račun. Čarobnjak se tada dovršava preko oznake u sesiji (60 minuta), a vlasnik računa
-  dobiva e-mail.
+  dobiva e-mail. Usput se odjavljuju sve stare prijave tog računa, pa pristup gubi i
+  netko tko je račun ranije otvorio na tuđu adresu.
+- Adresa administratora ili isključenog računa ne može biti kontakt za prijavu.
 
 ## Prijava vlasnika (P-17)
 

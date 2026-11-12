@@ -202,12 +202,50 @@ class Korak2Test(TestCase):
         # Čarobnjak se ipak može dovršiti.
         self.assertEqual(self.client.get("/aktivacija/K7M4QX/pokojnik/").status_code, 200)
 
-    def test_aktivacija_nikad_ne_prijavljuje_u_administratorski_racun(self):
-        Korisnik.objects.create(
-            username="admin", email="admin@example.com", is_staff=True, is_superuser=True
-        )
-        self.aktiviraj(email="admin@example.com")
-        self.assertNotIn("_auth_user_id", self.client.session)
+    def test_adresa_administratora_ili_iskljucenog_racuna_se_odbija(self):
+        Korisnik.objects.create(username="admin", email="admin@example.com", is_staff=True, is_superuser=True)
+        Korisnik.objects.create(username="stari", email="stari@example.com", is_active=False)
+        for email in ("admin@example.com", "stari@example.com"):
+            with self.subTest(email=email):
+                odgovor = self.aktiviraj(email=email)
+                self.assertContains(odgovor, "Ovu adresu nije moguće koristiti.")
+                self.assertNotIn("_auth_user_id", self.client.session)
+        self.assertEqual(Grob.objects.count(), 0)
+        self.plocica.refresh_from_db()
+        self.assertEqual(self.plocica.status, Plocica.Status.NEAKTIVIRANA)
+
+    def test_dodavanje_groba_postojecem_racunu_odjavljuje_njegove_stare_prijave(self):
+        # Netko je ranije otvorio račun na tuđu adresu i ostao prijavljen (30 dana).
+        zrtva = Korisnik(username="unuka@example.com", email="unuka@example.com")
+        zrtva.set_unusable_password()
+        zrtva.save()
+        napadac = self.client_class()
+        napadac.force_login(zrtva)
+        self.assertEqual(napadac.get("/vlasnik/").status_code, 200)
+
+        self.aktiviraj()  # prava vlasnica aktivira svoju pločicu istom adresom
+        self.assertEqual(napadac.get("/vlasnik/").status_code, 302)  # stara prijava više ne vrijedi
+
+    def test_prijavljeni_vlasnik_ostaje_prijavljen_kad_sebi_doda_drugi_grob(self):
+        vlasnica = Korisnik(username="unuka@example.com", email="unuka@example.com")
+        vlasnica.set_unusable_password()
+        vlasnica.save()
+        self.client.force_login(vlasnica)
+        self.client.post("/aktivacija/K7M4QX/", {"aktivacijski_kod": AKT_KOD})
+        self.aktiviraj()
+        self.assertEqual(self.client.get("/vlasnik/").status_code, 200)
+        self.assertContains(self.client.get("/aktivacija/K7M4QX/gotovo/"), "Uredi sadržaj")
+
+    def test_zauzeto_korisnicko_ime_ne_rusi_aktivaciju(self):
+        Korisnik.objects.create(username="unuka@example.com", email="druga-adresa@example.com")
+        odgovor = self.aktiviraj()
+        self.assertContains(odgovor, "Ovu adresu nije moguće koristiti.")
+        self.assertEqual(Grob.objects.count(), 0)
+
+    def test_naziv_groba_je_jedan_red_teksta(self):
+        self.aktiviraj(naziv="Obitelj\r\nProbić   Horvat")
+        self.assertEqual(Grob.objects.get().naziv, "Obitelj Probić Horvat")
+        self.assertEqual(len(mail.outbox), 1)
 
     def test_e_mail_dobrodoslice(self):
         self.aktiviraj()
@@ -340,6 +378,18 @@ class Korak3i4Test(TestCase):
             odgovor = klijent.post("/aktivacija/K7M4QX/pokojnik/", {"ime": "Uljez", "prezime": "Uljez"})
             self.assertEqual(odgovor.status_code, 404)
         self.assertEqual(Pokojnik.objects.count(), 0)
+
+    def test_gumb_za_uredjivanje_vidi_samo_tko_je_prijavljen_kao_kontakt(self):
+        self.assertContains(self.client.get("/aktivacija/K7M4QX/gotovo/"), "Uredi sadržaj")
+        self.client.logout()  # oznaka čarobnjaka nestaje s odjavom, pa je vraćamo ručno
+        sesija = self.client.session
+        sesija["aktivacija_grob"] = {"grob_id": Grob.objects.get().pk, "vrijeme": time.time()}
+        sesija.save()
+        self.client.force_login(Korisnik.objects.create(username="netko", email="netko@example.com"))
+        sesija = self.client.session
+        sesija["aktivacija_grob"] = {"grob_id": Grob.objects.get().pk, "vrijeme": time.time()}
+        sesija.save()
+        self.assertNotContains(self.client.get("/aktivacija/K7M4QX/gotovo/"), "Uredi sadržaj")
 
     def test_kontakt_za_prijavu_moze_nastaviti_s_drugog_uredjaja(self):
         drugi_uredjaj = self.client_class()

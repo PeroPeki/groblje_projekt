@@ -57,6 +57,10 @@ class GrobForm(forms.Form):
     def clean_email(self):
         return self.cleaned_data["email"].strip().lower()
 
+    def clean_naziv(self):
+        # Jedan red teksta: naziv ide i u naslov e-maila.
+        return " ".join(self.cleaned_data["naziv"].split())
+
     def clean_lozinka(self):
         lozinka = self.cleaned_data["lozinka"]
         provjeri_lozinku_groba(lozinka)
