@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n %}
-{# Varijable: grobovi (lista Grob), user (prijavljeni korisnik, automatski) #}
-{# Odjava je POST forma s csrf_token, nikad običan link. Postavke groba dolaze u P-21. #}
+{# Varijable: grobovi (lista Grob; svaki ima i poruka_na_cekanju (int) i zahtjeva_na_cekanju (int)), user #}
+{# Odjava je POST forma s csrf_token, nikad običan link. #}
 
 {% block naslov %}{% translate "Moji grobovi" %}{% endblock %}
 
@@ -9,12 +9,21 @@
 <div class="p-6 space-y-4 text-lg">
   <h1 class="text-2xl font-semibold">{% translate "Moji grobovi" %}</h1>
   <p>{{ user.email }}</p>
+  {% include "vlasnik/_poruke.html" %}
 
   {% if grobovi %}
     <ul class="space-y-3">
       {% for grob in grobovi %}
-        <li class="rounded-lg border p-4">
-          <a class="underline" href="{% url 'pristup:grob' kod=grob.plocica.kod %}">{{ grob.naziv }}</a>
+        <li class="space-y-2 rounded-lg border p-4">
+          <h2 class="text-xl font-semibold">{{ grob.naziv }}</h2>
+          {% if grob.poruka_na_cekanju %}
+            <p>{% blocktranslate with broj=grob.poruka_na_cekanju %}Poruke koje čekaju odobrenje: {{ broj }}{% endblocktranslate %}</p>
+          {% endif %}
+          {% if grob.zahtjeva_na_cekanju %}
+            <p>{% blocktranslate with broj=grob.zahtjeva_na_cekanju %}Zahtjevi za pristup: {{ broj }}{% endblocktranslate %}</p>
+          {% endif %}
+          <p><a class="underline" href="{% url 'pristup:grob' kod=grob.plocica.kod %}">{% translate "Pogledaj stranicu" %}</a></p>
+          <p><a class="underline" href="{% url 'vlasnik:postavke' kod=grob.plocica.kod %}">{% translate "Postavke i lozinka" %}</a></p>
         </li>
       {% endfor %}
     </ul>

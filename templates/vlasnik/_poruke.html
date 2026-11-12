@@ -1,0 +1,4 @@
+{# Djangove poruke nakon radnje („Lozinka je promijenjena.”). Varijable: messages (automatski). #}
+{% for poruka in messages %}
+  <p class="rounded-lg border p-3 font-semibold {% if poruka.tags == 'error' %}text-red-800{% endif %}" role="status">{{ poruka }}</p>
+{% endfor %}

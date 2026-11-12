@@ -1,0 +1,28 @@
+{% load i18n %}
+{# Dio stranice postavki koji HTMX zamjenjuje nakon klika. #}
+{# Varijable: grob (Grob), kod (str), greska_javnog_prikaza (str ili None) #}
+{# Obavezno: id="javni-prikaz", hx-post, hx-target="#javni-prikaz", hx-swap="outerHTML", #}
+{#           csrf_token, name="javni_prikaz" (da/ne), name="potvrda" (da) pri uključivanju. #}
+<section id="javni-prikaz" class="space-y-3 rounded-lg border p-4">
+  <h2 class="text-xl font-semibold">{% translate "Javni prikaz" %}</h2>
+  {% if greska_javnog_prikaza %}
+    <p class="font-semibold text-red-800" role="alert">{{ greska_javnog_prikaza }}</p>
+  {% endif %}
+  <form method="post" action="{% url 'vlasnik:javni_prikaz' kod=kod %}" class="space-y-3"
+        hx-post="{% url 'vlasnik:javni_prikaz' kod=kod %}" hx-target="#javni-prikaz" hx-swap="outerHTML">
+    {% csrf_token %}
+    {% if grob.javni_prikaz %}
+      <p>{% translate "Javni prikaz je uključen: stranicu vidi svatko tko ima link ili skenira kod, bez lozinke." %}</p>
+      <input type="hidden" name="javni_prikaz" value="ne">
+      <button class="w-full rounded-lg border px-5 py-3 text-lg" type="submit">{% translate "Isključi javni prikaz" %}</button>
+    {% else %}
+      <p>{% translate "Javni prikaz je isključen: stranica se otvara samo lozinkom groba ili obiteljskim linkom." %}</p>
+      <input type="hidden" name="javni_prikaz" value="da">
+      <label class="flex items-start gap-3">
+        <input class="mt-1 h-6 w-6" type="checkbox" name="potvrda" value="da">
+        <span>{% translate "Razumijem: sadržaj će vidjeti svatko tko ima link ili skenira kod. Tražilice ga i dalje neće prikazivati." %}</span>
+      </label>
+      <button class="w-full rounded-lg border px-5 py-3 text-lg" type="submit">{% translate "Uključi javni prikaz" %}</button>
+    {% endif %}
+  </form>
+</section>
