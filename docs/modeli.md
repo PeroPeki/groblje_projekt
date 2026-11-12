@@ -121,6 +121,16 @@ obiteljskog linka odjavljuje one koji su ušli preko njega. Logika je u `pristup
 Lozinka groba ima najmanje 6 znakova (`jezgra/lozinke.py`), što provjerava i sam
 `Grob.postavi_lozinku()`.
 
+## Vlasnički dio (od P-21)
+
+Sve adrese `/vlasnik/<KOD>/...` prolaze kroz dekorator `vlasnik_groba`
+(`vlasnik/dozvole.py`): smije samo kontakt za prijavu tog groba ili superuser. Za tuđi
+i za nepostojeći grob odgovor je isti, 404. Test `DozvoleTest` obilazi sve te adrese kao
+drugi korisnik i pada ako netko doda adresu, a ne doda je na popis u testu.
+
+Vlasnik mijenja naziv i lozinku groba, uključuje javni prikaz (uz izričitu potvrdu) i
+odjavljuje zapamćene uređaje. Oznaku grobnog mjesta i ime vlasnika samo vidi.
+
 ## Aktivacija (P-18 do P-20)
 
 Čarobnjak: aktivacijski kod → podaci groba i lozinka → prvi pokojnik → slike.

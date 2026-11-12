@@ -1074,7 +1074,7 @@ Obitelj aktivira pločicu čarobnjakom, prijavljuje se e-mailom i upravlja grobo
 > 🔁 **Predaja:** Petar predaje prijatelju predloške `templates/aktivacija/*.html` s popisom varijabli u `docs/predlosci.md` (uključujući `korak`, `ukupno_koraka` i greške forme) i CSV s demo aktivacijskim kodovima za lokalno testiranje. Time može krenuti **D-25**.
 
 ### P-21 Vlasnički dio: popis grobova i postavke groba
-- [ ] Gotovo
+- [x] Gotovo
 
 **Cilj:** prijavljeni kontakt za prijavu na `/vlasnik/` vidi svoje grobove. Za svaki grob može promijeniti naziv i lozinku, uključiti ili isključiti javni prikaz i odjaviti sve uređaje.
 

@@ -179,3 +179,257 @@ class PrijavaLinkomTest(TestCase):
         self.zatrazi()
         self.potvrdi(link_iz_poruke(mail.outbox[0]))
         self.assertEqual(self.client.session.get_expiry_age(), 30 * 24 * 3600)
+
+
+# --- Vlasnički dio groba (od P-21) ------------------------------------------
+
+from jezgra.models import Grob, Partner, Plocica, Pokojnik, SerijaPlocica  # noqa: E402
+from knjiga.models import PorukaSjecanja  # noqa: E402
+from pristup.models import ZahtjevZaPristup  # noqa: E402
+
+
+def napravi_grob(kod, korisnik, naziv="Obitelj Probić", lozinka="stara-lozinka"):
+    partner, _ = Partner.objects.get_or_create(naziv="Gradsko groblje Primjerovo")
+    serija, _ = SerijaPlocica.objects.get_or_create(
+        oznaka="TEST-VL", defaults={"partner": partner, "broj_komada": 5}
+    )
+    plocica = Plocica.objects.create(
+        serija=serija, kod=kod, aktivacijski_kod_hash="!", status=Plocica.Status.AKTIVIRANA
+    )
+    grob = Grob(
+        plocica=plocica,
+        partner=partner,
+        naziv=naziv,
+        oznaka_grobnog_mjesta="Polje X, red 9, br. 99",
+        vlasnik_ime="Stjepan Probić",
+        kontakt_za_prijavu=korisnik,
+    )
+    grob.postavi_lozinku(lozinka)
+    grob.save()
+    return grob
+
+
+class VlasnickiDioBaza(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.ana = Korisnik.objects.create(username="ana", email="ana@example.com")
+        cls.boris = Korisnik.objects.create(username="boris", email="boris@example.com")
+        cls.grob = napravi_grob("K7M4QX", cls.ana)
+        cls.pokojnik = Pokojnik.objects.create(grob=cls.grob, ime="Marija", prezime="Probić")
+        cls.borisov_grob = napravi_grob("AB2CD3", cls.boris, naziv="Obitelj Primjerić")
+
+    def setUp(self):
+        self.client.force_login(self.ana)
+
+
+class DozvoleTest(VlasnickiDioBaza):
+    """Nitko ne smije u vlasnički dio tuđeg groba (P-21, P-25).
+
+    Kad dodaš novi URL pod /vlasnik/<KOD>/, dodaj ga i ovdje.
+    """
+
+    def vlasnicki_urlovi(self, kod):
+        return [
+            ("get", f"/vlasnik/{kod}/postavke/", {}),
+            ("post", f"/vlasnik/{kod}/postavke/naziv/", {"naziv": "Uljez"}),
+            (
+                "post",
+                f"/vlasnik/{kod}/postavke/lozinka/",
+                {"lozinka": "uljez-lozinka", "lozinka2": "uljez-lozinka", "odjavi_uredjaje": "on"},
+            ),
+            ("post", f"/vlasnik/{kod}/postavke/odjavi-uredjaje/", {}),
+            ("post", f"/vlasnik/{kod}/postavke/javni-prikaz/", {"javni_prikaz": "da", "potvrda": "da"}),
+        ]
+
+    def test_popis_pokriva_sve_vlasnicke_urlove(self):
+        from vlasnik.urls import urlpatterns
+
+        pod_kodom = [u for u in urlpatterns if "kod" in u.pattern.regex.groupindex]
+        self.assertEqual(len(pod_kodom), len(self.vlasnicki_urlovi("K7M4QX")))
+
+    def test_drugi_korisnik_na_svakom_urlu_dobiva_404_i_nista_ne_mijenja(self):
+        prije = Grob.objects.filter(pk=self.borisov_grob.pk).values().get()
+        for metoda, adresa, podaci in self.vlasnicki_urlovi("AB2CD3"):
+            with self.subTest(adresa=adresa):
+                odgovor = getattr(self.client, metoda)(adresa, podaci)
+                self.assertEqual(odgovor.status_code, 404)
+        self.assertEqual(Grob.objects.filter(pk=self.borisov_grob.pk).values().get(), prije)
+
+    def test_nepostojeci_grob_izgleda_isto_kao_tudji(self):
+        for metoda, adresa, podaci in self.vlasnicki_urlovi("ZZZZZ9"):
+            with self.subTest(adresa=adresa):
+                self.assertEqual(getattr(self.client, metoda)(adresa, podaci).status_code, 404)
+
+    def test_neprijavljeni_posjetitelj_ide_na_prijavu(self):
+        self.client.logout()
+        for metoda, adresa, podaci in self.vlasnicki_urlovi("K7M4QX"):
+            with self.subTest(adresa=adresa):
+                odgovor = getattr(self.client, metoda)(adresa, podaci)
+                self.assertEqual(odgovor.status_code, 302)
+                self.assertTrue(odgovor["Location"].startswith("/vlasnik/prijava/"))
+        self.grob.refresh_from_db()
+        self.assertEqual(self.grob.naziv, "Obitelj Probić")
+
+    def test_superuser_smije_u_svaki_grob(self):
+        self.client.force_login(
+            Korisnik.objects.create(username="admin", email="admin@example.com", is_superuser=True)
+        )
+        self.assertEqual(self.client.get("/vlasnik/AB2CD3/postavke/").status_code, 200)
+
+    def test_radnje_koje_mijenjaju_podatke_ne_rade_get_zahtjevom(self):
+        for metoda, adresa, _ in self.vlasnicki_urlovi("K7M4QX"):
+            if metoda == "post":
+                with self.subTest(adresa=adresa):
+                    self.assertEqual(self.client.get(adresa).status_code, 405)
+
+
+class PopisGrobovaTest(VlasnickiDioBaza):
+    def test_vide_se_samo_vlastiti_grobovi(self):
+        odgovor = self.client.get("/vlasnik/")
+        self.assertContains(odgovor, "Obitelj Probić")
+        self.assertNotContains(odgovor, "Obitelj Primjerić")
+        self.assertContains(odgovor, "/vlasnik/K7M4QX/postavke/")
+
+    def test_broj_poruka_i_zahtjeva_na_cekanju(self):
+        druga = Pokojnik.objects.create(grob=self.grob, ime="Josip", prezime="Probić")
+        for pokojnik in (self.pokojnik, self.pokojnik, druga):
+            PorukaSjecanja.objects.create(pokojnik=pokojnik, ime_autora="Susjeda", tekst="Počivala u miru.")
+        PorukaSjecanja.objects.create(
+            pokojnik=druga, ime_autora="Već odobrena", tekst="x", status=PorukaSjecanja.Status.ODOBRENA
+        )
+        for i in range(2):
+            ZahtjevZaPristup.objects.create(grob=self.grob, ime=f"Rođak {i}", email=f"r{i}@example.com")
+        ZahtjevZaPristup.objects.create(
+            grob=self.grob, ime="Odbijen", email="o@example.com", status=ZahtjevZaPristup.Status.ODBIJEN
+        )
+
+        grob = self.client.get("/vlasnik/").context["grobovi"][0]
+        self.assertEqual(grob.poruka_na_cekanju, 3)
+        self.assertEqual(grob.zahtjeva_na_cekanju, 2)
+
+    def test_popis_ima_stalan_broj_upita(self):
+        for i in range(5):
+            napravi_grob(f"GRB{i}22", self.ana, naziv=f"Grob {i}")
+        with self.assertNumQueries(3):  # sesija, korisnik, grobovi s brojevima
+            self.client.get("/vlasnik/")
+
+
+class PostavkeGrobaTest(VlasnickiDioBaza):
+    def posjetitelj_s_lozinkom(self, lozinka="stara-lozinka"):
+        """Drugi uređaj koji je upisao lozinku groba i dobio kolačić pristupa."""
+        uredjaj = self.client_class()
+        uredjaj.post("/g/K7M4QX/", {"lozinka": lozinka})
+        return uredjaj
+
+    def vidi_profil(self, uredjaj) -> bool:
+        return "Marija Probić" in uredjaj.get("/g/K7M4QX/", follow=True).content.decode()
+
+    def promijeni_lozinku(self, **podaci):
+        zadano = {"lozinka": "nova-lozinka", "lozinka2": "nova-lozinka"}
+        return self.client.post("/vlasnik/K7M4QX/postavke/lozinka/", {**zadano, **podaci})
+
+    def test_stranica_postavki(self):
+        odgovor = self.client.get("/vlasnik/K7M4QX/postavke/")
+        self.assertContains(odgovor, "Obitelj Probić")
+        # Vlasnik vidi podatke iz evidencije, ali za njih nema polja za izmjenu.
+        self.assertContains(odgovor, "Stjepan Probić")
+        self.assertContains(odgovor, "Polje X, red 9, br. 99")
+        self.assertNotContains(odgovor, 'name="vlasnik_ime"')
+        self.assertNotContains(odgovor, 'name="oznaka_grobnog_mjesta"')
+        self.assertNotContains(odgovor, self.grob.lozinka_hash)
+
+    def test_promjena_naziva(self):
+        odgovor = self.client.post("/vlasnik/K7M4QX/postavke/naziv/", {"naziv": "Obitelj Probić-Horvat"})
+        self.assertRedirects(odgovor, "/vlasnik/K7M4QX/postavke/")
+        self.grob.refresh_from_db()
+        self.assertEqual(self.grob.naziv, "Obitelj Probić-Horvat")
+
+    def test_vlasnik_ne_moze_post_om_promijeniti_podatke_iz_evidencije(self):
+        self.client.post(
+            "/vlasnik/K7M4QX/postavke/naziv/",
+            {"naziv": "Novi naziv", "vlasnik_ime": "Uljez", "oznaka_grobnog_mjesta": "Drugo", "javni_prikaz": "on"},
+        )
+        self.grob.refresh_from_db()
+        self.assertEqual(self.grob.vlasnik_ime, "Stjepan Probić")
+        self.assertEqual(self.grob.oznaka_grobnog_mjesta, "Polje X, red 9, br. 99")
+        self.assertFalse(self.grob.javni_prikaz)
+
+    def test_prazan_naziv_se_odbija(self):
+        odgovor = self.client.post("/vlasnik/K7M4QX/postavke/naziv/", {"naziv": ""})
+        self.assertEqual(odgovor.status_code, 400)
+        self.grob.refresh_from_db()
+        self.assertEqual(self.grob.naziv, "Obitelj Probić")
+
+    def test_promjena_lozinke_s_kvacicom_odjavljuje_uredjaje(self):
+        uredjaj = self.posjetitelj_s_lozinkom()
+        self.assertTrue(self.vidi_profil(uredjaj))
+
+        self.assertRedirects(self.promijeni_lozinku(odjavi_uredjaje="on"), "/vlasnik/K7M4QX/postavke/")
+        self.assertFalse(self.vidi_profil(uredjaj))
+        # Stara lozinka više ne radi, nova radi.
+        self.assertFalse(self.vidi_profil(self.posjetitelj_s_lozinkom("stara-lozinka")))
+        self.assertTrue(self.vidi_profil(self.posjetitelj_s_lozinkom("nova-lozinka")))
+
+    def test_promjena_lozinke_bez_kvacice_ostavlja_uredjaje_prijavljene(self):
+        uredjaj = self.posjetitelj_s_lozinkom()
+        self.promijeni_lozinku()
+        self.assertTrue(self.vidi_profil(uredjaj))
+        self.assertFalse(self.vidi_profil(self.posjetitelj_s_lozinkom("stara-lozinka")))
+
+    def test_neispravna_nova_lozinka_se_odbija(self):
+        for podaci, poruka in (
+            ({"lozinka": "12345", "lozinka2": "12345"}, "najmanje 6 znakova"),
+            ({"lozinka2": "drukcija-lozinka"}, "Lozinke nisu jednake."),
+        ):
+            with self.subTest(podaci=podaci):
+                odgovor = self.promijeni_lozinku(**podaci, odjavi_uredjaje="on")
+                self.assertContains(odgovor, poruka, status_code=400)
+        self.grob.refresh_from_db()
+        self.assertTrue(self.grob.provjeri_lozinku("stara-lozinka"))
+        self.assertEqual(self.grob.verzija_pristupa, 1)
+
+    def test_gumb_odjavi_sve_uredjaje(self):
+        uredjaj = self.posjetitelj_s_lozinkom()
+        self.client.post("/vlasnik/K7M4QX/postavke/odjavi-uredjaje/")
+        self.assertFalse(self.vidi_profil(uredjaj))
+        # Lozinka je ostala ista, pa se uređaj može ponovno prijaviti.
+        self.assertTrue(self.vidi_profil(self.posjetitelj_s_lozinkom()))
+
+    # --- javni prikaz --------------------------------------------------------
+
+    def javni_prikaz(self, htmx=False, **podaci):
+        zaglavlja = {"HTTP_HX_REQUEST": "true"} if htmx else {}
+        return self.client.post("/vlasnik/K7M4QX/postavke/javni-prikaz/", podaci, **zaglavlja)
+
+    def test_ukljucivanje_javnog_prikaza_trazi_potvrdu(self):
+        self.javni_prikaz(javni_prikaz="da")
+        self.grob.refresh_from_db()
+        self.assertFalse(self.grob.javni_prikaz)
+
+        self.javni_prikaz(javni_prikaz="da", potvrda="da")
+        self.grob.refresh_from_db()
+        self.assertTrue(self.grob.javni_prikaz)
+        self.assertTrue(self.vidi_profil(self.client_class()))  # bez lozinke
+
+    def test_iskljucivanje_javnog_prikaza_ne_trazi_potvrdu(self):
+        Grob.objects.filter(pk=self.grob.pk).update(javni_prikaz=True)
+        self.javni_prikaz(javni_prikaz="ne")
+        self.grob.refresh_from_db()
+        self.assertFalse(self.grob.javni_prikaz)
+        self.assertFalse(self.vidi_profil(self.client_class()))
+
+    def test_htmx_zahtjev_vraca_samo_dio_stranice(self):
+        odgovor = self.javni_prikaz(htmx=True, javni_prikaz="da", potvrda="da")
+        self.assertEqual(odgovor.status_code, 200)
+        self.assertTemplateUsed(odgovor, "vlasnik/_javni_prikaz.html")
+        self.assertTemplateNotUsed(odgovor, "base.html")
+        self.assertContains(odgovor, 'id="javni-prikaz"')
+        self.assertContains(odgovor, "Isključi javni prikaz")
+
+    def test_htmx_bez_potvrde_vraca_gresku_u_istom_dijelu(self):
+        odgovor = self.javni_prikaz(htmx=True, javni_prikaz="da")
+        self.assertContains(odgovor, "označite da razumijete")
+        self.assertContains(odgovor, "Uključi javni prikaz")
+
+    def test_obican_zahtjev_bez_htmx_a_preusmjerava(self):
+        self.assertRedirects(self.javni_prikaz(javni_prikaz="da", potvrda="da"), "/vlasnik/K7M4QX/postavke/")

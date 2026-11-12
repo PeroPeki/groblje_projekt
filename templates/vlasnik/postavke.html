@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% load i18n %}
+{# Varijable: grob (Grob), kod (str), forma_naziv (polje naziv), forma_lozinka (polja lozinka, lozinka2, odjavi_uredjaje) #}
+{# Četiri POST forme, svaka sa csrf_token: vlasnik:postavke_naziv, vlasnik:postavke_lozinka, #}
+{# vlasnik:odjavi_uredjaje i (u _javni_prikaz.html) vlasnik:javni_prikaz. #}
+{# Oznaku grobnog mjesta i vlasnika korisnik samo vidi, ne mijenja ih (odluka 19). #}
+
+{% block naslov %}{% translate "Postavke groba" %}{% endblock %}
+
+{% block sadrzaj %}
+<div class="p-6 space-y-6 text-lg">
+  <p><a class="underline" href="{% url 'vlasnik:popis' %}">{% translate "Moji grobovi" %}</a></p>
+  <h1 class="text-2xl font-semibold">{{ grob.naziv }}</h1>
+  {% include "vlasnik/_poruke.html" %}
+
+  <section class="space-y-3 rounded-lg border p-4">
+    <h2 class="text-xl font-semibold">{% translate "Naziv groba" %}</h2>
+    <form method="post" action="{% url 'vlasnik:postavke_naziv' kod=kod %}" class="space-y-3 [&_input:not([type=checkbox])]:block [&_input:not([type=checkbox])]:w-full [&_input:not([type=checkbox])]:rounded-lg [&_input:not([type=checkbox])]:border [&_input:not([type=checkbox])]:p-3">
+      {% csrf_token %}
+      {% include "aktivacija/_forma_polja.html" with forma=forma_naziv %}
+      <button class="w-full rounded-lg bg-gray-900 px-5 py-3 text-lg text-white" type="submit">{% translate "Spremi naziv" %}</button>
+    </form>
+  </section>
+
+  <section class="space-y-3 rounded-lg border p-4">
+    <h2 class="text-xl font-semibold">{% translate "Lozinka groba" %}</h2>
+    <p>{% translate "Lozinku dajete obitelji i prijateljima. Staru lozinku ne možemo prikazati, možete samo postaviti novu." %}</p>
+    <form method="post" action="{% url 'vlasnik:postavke_lozinka' kod=kod %}" class="space-y-3 [&_input:not([type=checkbox])]:block [&_input:not([type=checkbox])]:w-full [&_input:not([type=checkbox])]:rounded-lg [&_input:not([type=checkbox])]:border [&_input:not([type=checkbox])]:p-3">
+      {% csrf_token %}
+      {% include "aktivacija/_forma_polja.html" with forma=forma_lozinka %}
+      <button class="w-full rounded-lg bg-gray-900 px-5 py-3 text-lg text-white" type="submit">{% translate "Promijeni lozinku" %}</button>
+    </form>
+  </section>
+
+  <section class="space-y-3 rounded-lg border p-4">
+    <h2 class="text-xl font-semibold">{% translate "Zapamćeni uređaji" %}</h2>
+    <p>{% translate "Uređaj koji je jednom upisao lozinku pamti je oko godinu dana. Ovim gumbom odjavljujete sve takve uređaje odjednom." %}</p>
+    <form method="post" action="{% url 'vlasnik:odjavi_uredjaje' kod=kod %}">
+      {% csrf_token %}
+      <button class="w-full rounded-lg border px-5 py-3 text-lg" type="submit">{% translate "Odjavi sve uređaje" %}</button>
+    </form>
+  </section>
+
+  {% include "vlasnik/_javni_prikaz.html" %}
+
+  <section class="space-y-2 rounded-lg border p-4">
+    <h2 class="text-xl font-semibold">{% translate "Podaci iz evidencije groblja" %}</h2>
+    <p>{% translate "Vlasnik:" %} {{ grob.vlasnik_ime }}</p>
+    <p>{% translate "Oznaka grobnog mjesta:" %} {{ grob.oznaka_grobnog_mjesta|default:"–" }}</p>
+    <p class="text-base">{% translate "Ove podatke mijenjamo mi, uz potvrdu vlasnika ili uprave groblja. Javite nam se ako nešto nije točno." %}</p>
+  </section>
+</div>
+{% endblock %}
